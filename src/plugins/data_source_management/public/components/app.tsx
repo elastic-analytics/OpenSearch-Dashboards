@@ -37,7 +37,11 @@ export const DataSourceManagementApp = ({ services }: DataSourceManagmentContext
     });
 
     services.savedObjects.client
-      .create('data-source-poc', { title: 'POC data source', type: 'data-source-poc', endpoint:'dummy_endpoint'})
+      .create('data-source-poc', {
+        title: 'POC data source',
+        type: 'data-source-poc',
+        endpoint: 'dummy_endpoint',
+      })
       .then((res: any) => {
         // eslint-disable-next-line no-console
         console.log(res);

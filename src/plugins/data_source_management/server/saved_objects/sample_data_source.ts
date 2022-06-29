@@ -46,10 +46,10 @@ export const sampleDataSource: SavedObjectsType = {
       endpoint: {
         type: 'text',
       },
-      version: { 
-        type: 'integer' 
+      version: {
+        type: 'integer',
       },
-      //todo: pending on/off flag for plugins
+      // todo: pending on/off flag for plugins
     },
   },
 };
