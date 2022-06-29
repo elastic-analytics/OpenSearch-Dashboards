@@ -31,17 +31,25 @@
 import { SavedObjectsType } from 'opensearch-dashboards/server';
 
 export const sampleDataSource: SavedObjectsType = {
-  name: 'sample-data-source',
-  namespaceType: 'agnostic',
+  name: 'data-source-poc',
+  namespaceType: 'single',
   hidden: false,
   mappings: {
+    dynamic: false,
     properties: {
-      name: {
+      title: {
+        type: 'text',
+      },
+      type: {
         type: 'keyword',
       },
-      count: {
-        type: 'long',
+      endpoint: {
+        type: 'text',
       },
+      version: { 
+        type: 'integer' 
+      },
+      //todo: pending on/off flag for plugins
     },
   },
 };
