@@ -18,37 +18,37 @@ export async function getCredentials(
   defaultIndex: string
   // credentialManagementStart: CredentialManagementStart
 ) {
-  return (
-    savedObjectsClient
-      .find<ICredential>({
-        type: 'credential',
-        fields: ['id', 'credential_name', 'credential_type'],
-        perPage: 10000,
-      })
-      .then((response) =>
-        response.savedObjects
-          .map((source) => {
-            const id = source.id;
-            const title = source.get('title');
-            const credentialName = source.get('credential_name');
-            const credentialType = source.get('credential_type');
-            return {
-              id,
-              title,
-              credentialName,
-              credentialType,
-              sort: `${credentialName}`,
-            };
-          })
-          .sort((a, b) => {
-            if (a.sort < b.sort) {
-              return -1;
-            } else if (a.sort > b.sort) {
-              return 1;
-            } else {
-              return 0;
-            }
-          })
-      ) || []
+return await (
+  savedObjectsClient
+    .find<ICredential>({
+      type: 'credential',
+      fields: ['id', 'credential_name', 'credential_type'],
+      perPage: 10000,
+    })
+    .then((response) =>
+      response.savedObjects
+        .map((source) => {
+          const id = source.id;
+          const title = source.get('title');
+          const credentialName = source.get('credential_name');
+          const credentialType = source.get('credential_type');
+          return {
+            id,
+            title,
+            credentialName,
+            credentialType,
+            sort: `${credentialName}`,
+          };
+        })
+        .sort((a, b) => {
+          if (a.sort < b.sort) {
+            return -1;
+          } else if (a.sort > b.sort) {
+            return 1;
+          } else {
+            return 0;
+          }
+        })
+    ) || []
   );
 }

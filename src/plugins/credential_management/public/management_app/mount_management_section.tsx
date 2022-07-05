@@ -13,6 +13,7 @@ import React from 'react';
 import ReactDOM from 'react-dom';
 import { Router, Switch, Route } from 'react-router-dom';
 
+// TODO: Clean up this file after creation UX added
 // import { i18n } from '@osd/i18n';
 import { I18nProvider } from '@osd/i18n/react';
 
@@ -33,12 +34,12 @@ import { CredentialManagementContext } from '../types';
 import { OpenSearchDashboardsContextProvider } from '../../../opensearch_dashboards_react/public';
 
 export interface CredentialManagementStartDependencies {
-    data: DataPublicPluginStart;
+  data: DataPublicPluginStart;
 }
-  
+
 export async function mountManagementSection(
   getStartServices: StartServicesAccessor<CredentialManagementStartDependencies>,
-  params: ManagementAppMountParams,
+  params: ManagementAppMountParams
 //   getMlCardState: () => MlCardState
 ) {
   const [
@@ -93,15 +94,15 @@ export async function mountManagementSection(
       <I18nProvider>
         <Router history={params.history}>
           <Switch>
-              <Route path={['/']}>
-                <CredentialsTableWithRouter canSave={true} />
-              </Route>
-              {/* <Route path={['/create']}>
-                <CreateIndexPatternWizardWithRouter />
-              </Route> */}
-            </Switch>
-          </Router>
-        </I18nProvider>
+            <Route path={['/']}>
+              <CredentialsTableWithRouter canSave={true} />
+            </Route>
+            {/* <Route path={['/create']}>
+              <CreateIndexPatternWizardWithRouter />
+            </Route> */}
+          </Switch>
+        </Router>
+      </I18nProvider>
     </OpenSearchDashboardsContextProvider>,
      params.element
   );

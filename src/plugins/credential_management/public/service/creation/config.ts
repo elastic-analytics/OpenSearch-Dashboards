@@ -9,6 +9,7 @@
  * GitHub history for details.
  */
 
+// TODO: Clean up this file after creation UX added
 import { i18n } from '@osd/i18n';
 // import { MatchedItem } from '../../components/create_credential_wizard/types';
 

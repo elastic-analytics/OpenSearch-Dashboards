@@ -1,3 +1,14 @@
+/*
+ * SPDX-License-Identifier: Apache-2.0
+ *
+ * The OpenSearch Contributors require contributions made to
+ * this file be licensed under the Apache-2.0 license or a
+ * compatible open source license.
+ *
+ * Any modifications Copyright OpenSearch Contributors. See
+ * GitHub history for details.
+ */
+
 // import { i18n } from '@osd/i18n';
 import { DataPublicPluginStart } from 'src/plugins/data/public';
 
@@ -25,12 +36,11 @@ export interface CredentialManagementStartDependencies {
 
 export class CredentialManagementPlugin
   implements Plugin<CredentialManagementPluginSetup, CredentialManagementPluginStart> {
-  
   private readonly credentialManagementService = new CredentialManagementService();  
-    
-  public setup(
+  
+  public setup (
     core: CoreSetup<CredentialManagementStartDependencies>,
-    { management, urlForwarding}: CredentialManagementSetupDependencies,
+    { management, urlForwarding}: CredentialManagementSetupDependencies
   ): CredentialManagementPluginSetup {
     const opensearchDashboardsSection = management.sections.section.opensearchDashboards;
     
@@ -50,32 +60,6 @@ export class CredentialManagementPlugin
     });
 
     return this.credentialManagementService.setup({ httpClient: core.http });
-
-    // Register an application into the side navigation menu
-    // core.application.register({
-    //   id: 'credentialManagement',
-    //   title: PLUGIN_NAME,
-    //   async mount(params: AppMountParameters) {
-    //     // Load application bundle
-    //     const { renderApp } = await import('./application');
-    //     // Get start services as specified in opensearch_dashboards.json
-    //     const [coreStart, depsStart] = await core.getStartServices();
-    //     // Render the application
-    //     return renderApp(coreStart, depsStart as AppPluginStartDependencies, params);
-    //   },
-    // });
-
-    // Return methods that should be available to other plugins
-    // return {
-    //   getGreeting() {
-    //     return i18n.translate('credentialManagement.greetingText', {
-    //       defaultMessage: 'Hello from {name}!',
-    //       values: {
-    //         name: PLUGIN_NAME,
-    //       },
-    //     });
-    //   },
-    // };
   }
 
   public start(core: CoreStart): CredentialManagementPluginStart {

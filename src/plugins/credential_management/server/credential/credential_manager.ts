@@ -12,20 +12,6 @@
 import { OpenSearchDashboardsRequest } from 'opensearch-dashboards/server';
 import { CryptoCli } from '../crypto';
 import { IBasicAuthCredentialMaterial, IAWSIAMCredentialMaterial } from '../../common';
-// interface Credential {
-//   readonly credential_name: string;
-//   readonly credential_type: string;
-//   readonly credential_material: BasicAuthCredentialMaterial | AWSIAMCredentialMaterial;
-// }
-
-// interface BasicAuthCredentialMaterial {
-//   readonly user_name: string;
-//   readonly password: string;
-// }
-
-// interface AWSIAMCredentialMaterial {
-//   readonly encrypted_aws_iam_credential: string;
-// }
 
 // TODO: Refactor handler, add logger, etc
 export async function createHandler(request: OpenSearchDashboardsRequest) {
