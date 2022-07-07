@@ -11,7 +11,7 @@
 
 import React from 'react';
 import { withRouter, RouteComponentProps } from 'react-router-dom';
-import { 
+import {
   EuiHorizontalRule,
   EuiGlobalToastList,
   EuiGlobalToastListToast,
@@ -23,7 +23,7 @@ import {
   EuiLink,
   EuiFilePicker,
   EuiButton,
-  EuiPageContent
+  EuiPageContent,
 } from '@elastic/eui';
 import { DocLinksStart } from 'src/core/public';
 import { getCreateBreadcrumbs } from '../breadsrumbs';
@@ -34,9 +34,8 @@ import { context as contextType } from '../../../../opensearch_dashboards_react/
 interface CreateCredentialWizardState {
   credentialName: string;
   credentialType: string;
-  user_name: string,
-  password: string,
-  remoteClustersExist: boolean;
+  user_name: string;
+  password: string;
   toasts: EuiGlobalToastListToast[];
   docLinks: DocLinksStart;
 }
@@ -45,7 +44,6 @@ export class CreateCredentialWizard extends React.Component<
   RouteComponentProps,
   CreateCredentialWizardState
 > {
-
   static contextType = contextType;
   public readonly context!: CredentialManagmentContextValue;
 
@@ -59,7 +57,6 @@ export class CreateCredentialWizard extends React.Component<
       credentialType: 'basic_auth',
       user_name: '',
       password: '',
-      remoteClustersExist: false,
       toasts: [],
       docLinks: context.services.docLinks,
     };
@@ -70,15 +67,12 @@ export class CreateCredentialWizard extends React.Component<
 
     return (
       <Header
-        // prompt={indexPatternCreationType.renderPrompt()}
-        // indexPatternName={indexPatternCreationType.getIndexPatternName()}
-        // isBeta={indexPatternCreationType.getIsBeta()}
         docLinks={docLinks}
       />
     );
   }
 
-  // TODO: Add conditional rendering
+  // TODO: Add conditional rendering to select credential types
   renderContent() {
     const header = this.renderHeader();
 
@@ -90,23 +84,21 @@ export class CreateCredentialWizard extends React.Component<
           <EuiDescribedFormGroup
             title={<h3>Credential Name</h3>}
             description={
-              <p>
-                The name of credential that you want to create
-              </p>
+              <p>The name of credential that you want to create</p>
             }
           >
             <EuiFormRow label="Credential Name">
-              <EuiFieldText 
-                  placeholder="Your Credential Name"
-                  value={this.state.credentialName || ''}
-                  onChange={(e) => this.setState({ credentialName: e.target.value })}
+              <EuiFieldText
+                placeholder="Your Credential Name"
+                value={this.state.credentialName || ''}
+                onChange={(e) => this.setState({ credentialName: e.target.value })}
               />
             </EuiFormRow>
           </EuiDescribedFormGroup>
           <EuiDescribedFormGroup
             title={<h3>Credential Type</h3>}
             description={
-                <div>
+              <div>
                 <p>
                   The type of credential that you want to create{' '}
                   <EuiLink href="#/display/text">
@@ -114,21 +106,25 @@ export class CreateCredentialWizard extends React.Component<
                   </EuiLink>
                 </p>
                 <ul>
-                  <li> For 'username_password_credential' type: this type can be used for {' '}
-                  credentials in format of username, password. </li>
+                  <li>
+                    For <b>username_password_credential</b> type: this type can be used for{' '}
+                    credentials in format of username, password.{' '}
+                  </li>
                   <li> Ex: Opensearch basic auth </li>
-                </ul>                
-                 <ul>
-                   <li>  For 'aws_iam_credential' type: this type can only be used for {' '}
-                  aws iam credential, with aws_access_key_id, {' '}
-                  aws_secret_access_key, and region as optional </li>
                 </ul>
-                </div>
-              }
+                <ul>
+                  <li>
+                    For <b>aws_iam_credential</b> type: this type can only be used for{' '}
+                    aws iam credential, with aws_access_key_id,{' '}
+                    aws_secret_access_key, and region (optional) 
+                  </li>
+                </ul>
+              </div>
+            }
           >
             <EuiFormRow label="Credential Type">
               <EuiSelect
-                onChange={(e) => this.setState({ credentialType: e.target.value})}
+                onChange={(e) => this.setState({ credentialType: e.target.value })}
                 options={[
                   { value: 'basic_auth', text: 'Username and Password Credential' },
                   { value: 'aws_iam_credential', text: 'AWS IAM Credential' },
@@ -136,29 +132,29 @@ export class CreateCredentialWizard extends React.Component<
               />
             </EuiFormRow>
             <EuiFormRow label="User Name">
-              <EuiFieldText 
-                  placeholder="Your User Name"
-                  value={this.state.user_name || ''}
-                  onChange={(e) => this.setState({ user_name: e.target.value })}
+              <EuiFieldText
+                placeholder="Your User Name"
+                value={this.state.user_name || ''}
+                onChange={(e) => this.setState({ user_name: e.target.value })}
               />
             </EuiFormRow>
             <EuiFormRow label="Password">
-              <EuiFieldText 
-                  placeholder="Your Password"
-                  value={this.redact(this.state.password.length) || ''}
-                  onChange={(e) => this.setState({ password: e.target.value })}
+              <EuiFieldText
+                placeholder="Your Password"
+                value={this.redact(this.state.password.length) || ''}
+                onChange={(e) => this.setState({ password: e.target.value })}
               />
             </EuiFormRow>
             <EuiFormRow label="Upload Credential File">
               <EuiFilePicker />
-            </EuiFormRow>        
+            </EuiFormRow>
           </EuiDescribedFormGroup>
           <EuiButton type="submit" fill onClick={this.createCredential}>
-                Create
+            Create
           </EuiButton>
         </EuiForm>
       </EuiPageContent>
-    );  
+    );
   }
 
   removeToast = (id: string) => {
@@ -166,10 +162,8 @@ export class CreateCredentialWizard extends React.Component<
       toasts: prevState.toasts.filter((toast) => toast.id !== id),
     }));
   };
-  
   render() {
     const content = this.renderContent();
-    // console.warn("wizard: ", content)
 
     return (
       <>
@@ -186,31 +180,31 @@ export class CreateCredentialWizard extends React.Component<
   }
 
   redact = (len: number) => {
-     return '*'.repeat(len);
-  }
+    return '*'.repeat(len);
+  };
 
   createCredential = async () => {
     const { http } = this.context.services;
-    console.warn("state: ", this.state)
-    try{
+    try {
       // TODO: Refactor it by registering client wrapper factory
-      await http.post('/api/credential_management/create', {
-        body: JSON.stringify({ 
-          'credential_name': this.state.credentialName,
-          'credential_type': this.state.credentialType,
-          'basic_auth_credential_JSON': {
-            'user_name': this.state.user_name,
-            'password': this.state.password
-          }
+      await http
+        .post('/api/credential_management/create', {
+          body: JSON.stringify({
+            credential_name: this.state.credentialName,
+            credential_type: this.state.credentialType,
+            basic_auth_credential_json: {
+              user_name: this.state.user_name,
+              password: this.state.password,
+            },
+          }),
         })
-      }).then((res)=>{
-        console.warn(res);
-        console.log("Refactor it by registering client wrapper factory");
-      });
+        .then((res) => {
+          console.info(res);
+        });
     } catch (e) {
       return e;
     }
-  }  
+  };
 }
 
 // TODO: Add router

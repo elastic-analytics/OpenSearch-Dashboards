@@ -34,8 +34,6 @@ export class CreateDataSourceWizard extends Component<
   public readonly context!: DataSourceManagmentContextValue;
 
   constructor(props: RouteComponentProps, context: DataSourceManagmentContextValue) {
-        console.warn("context: ", context.services)
-
     super(props, context);
 
     context.services.setBreadcrumbs(getCreateBreadcrumbs());

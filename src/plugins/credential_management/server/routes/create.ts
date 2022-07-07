@@ -24,11 +24,11 @@ export function registerCreateRoute(router: IRouter) {
                   schema.literal('basic_auth'),
                   schema.literal('aws_iam_credential'),
                 ]),
-                basic_auth_credential_JSON: schema.maybe(schema.object({
+                basic_auth_credential_json: schema.maybe(schema.object({
                   user_name: schema.string(),
                   password: schema.string()
                 })),
-                aws_iam_credential_JSON: schema.maybe(schema.object({
+                aws_iam_credential_json: schema.maybe(schema.object({
                   aws_iam_credential: schema.string()
                 }))
             }),

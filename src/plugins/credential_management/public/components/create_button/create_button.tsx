@@ -53,9 +53,6 @@ export class CreateButton extends React.Component<Props, State> {
       return null;
     }
 
-    // console.warn(options[0].onClick)
-    // console.warn(options.length)
-
     if (options.length === 1) {
       return (
         <EuiButton
