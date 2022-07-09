@@ -58,7 +58,7 @@ export const Header = ({
         <p>
           <FormattedMessage
             id="credentialManagement.createCredential.description"
-            defaultMessage="An credential can be attached to multiple sources. For example, {credential} can be attached to two data sources {first} and {second}."
+            defaultMessage="A credential can be attached to multiple sources. For example, {credential} can be attached to two data sources {first} and {second}."
             values={{
               credential: <EuiCode>username-password-credential</EuiCode>,
               first: <EuiCode>os-service-log</EuiCode>,

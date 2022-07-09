@@ -18,10 +18,10 @@ export interface ICredential {
   readonly credential_material: IBasicAuthCredentialMaterial | IAWSIAMCredentialMaterial;
 }
 
-export type CredentialType = USERNAMEANDPASSWORDTYPE | AWSIAMTYPE;
+export type CredentialType = USERNAME_PASSWORD_TYPE | AWS_IAM_TYPE;
 // TODO: Update server side
-export type USERNAMEANDPASSWORDTYPE = 'basic_auth';
-export type AWSIAMTYPE = 'aws_iam_credential';
+export type USERNAME_PASSWORD_TYPE = 'username_password_credential';
+export type AWS_IAM_TYPE = 'aws_iam_credential';
 
 export interface IBasicAuthCredentialMaterial {
   readonly user_name: string;

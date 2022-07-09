@@ -30,6 +30,7 @@ import { getCreateBreadcrumbs } from '../breadsrumbs';
 import { CredentialManagmentContextValue } from '../../types';
 import { Header } from './components/header';
 import { context as contextType } from '../../../../opensearch_dashboards_react/public';
+import { Credential } from '../../../common';
 
 interface CreateCredentialWizardState {
   credentialName: string;
@@ -39,6 +40,8 @@ interface CreateCredentialWizardState {
   toasts: EuiGlobalToastListToast[];
   docLinks: DocLinksStart;
 }
+
+const USERNAME_PASSWORD_TYPE: Credential.USERNAME_PASSWORD_TYPE = 'username_password_credential';
 
 export class CreateCredentialWizard extends React.Component<
   RouteComponentProps,
@@ -54,7 +57,7 @@ export class CreateCredentialWizard extends React.Component<
 
     this.state = {
       credentialName: '',
-      credentialType: 'basic_auth',
+      credentialType: USERNAME_PASSWORD_TYPE,
       user_name: '',
       password: '',
       toasts: [],
@@ -126,7 +129,7 @@ export class CreateCredentialWizard extends React.Component<
               <EuiSelect
                 onChange={(e) => this.setState({ credentialType: e.target.value })}
                 options={[
-                  { value: 'basic_auth', text: 'Username and Password Credential' },
+                  { value: USERNAME_PASSWORD_TYPE, text: 'Username and Password Credential' },
                   { value: 'aws_iam_credential', text: 'AWS IAM Credential' },
                 ]}
               />
@@ -192,17 +195,17 @@ export class CreateCredentialWizard extends React.Component<
           body: JSON.stringify({
             credential_name: this.state.credentialName,
             credential_type: this.state.credentialType,
-            basic_auth_credential_json: {
+            username_password_credential_materials: {
               user_name: this.state.user_name,
               password: this.state.password,
             },
           }),
         })
         .then((res) => {
-          console.info(res);
+          console.log(res);
         });
     } catch (e) {
-      return e;
+      console.log(e);
     }
   };
 }

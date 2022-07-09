@@ -40,7 +40,7 @@ const sectionsHeader = i18n.translate('credentialManagement.credential.sectionsH
   defaultMessage: 'Credentials',
 });
 
-const IPM_APP_ID = 'credentials';
+const CM_APP_ID = 'credentials';
 
 export class CredentialManagementPlugin
   implements
@@ -61,7 +61,7 @@ export class CredentialManagementPlugin
       throw new Error('`opensearchDashboards` management section not found.');
     }
 
-    const newAppPath = `management/opensearch-dashboards/${IPM_APP_ID}`;
+    const newAppPath = `management/opensearch-dashboards/${CM_APP_ID}`;
     const legacyPatternsPath = 'management/opensearch-dashboards/credentials';
 
     urlForwarding.forwardApp(
@@ -76,7 +76,7 @@ export class CredentialManagementPlugin
     });
 
     opensearchDashboardsSection.registerApp({
-      id: IPM_APP_ID,
+      id: CM_APP_ID,
       title: sectionsHeader,
       order: 0,
       mount: async (params) => {

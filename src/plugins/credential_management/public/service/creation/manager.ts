@@ -30,23 +30,7 @@ export class CredentialCreationManager {
   }
 
   start() {
-    const getType = (key: string | undefined): CredentialCreationConfig => {
-      if (key) {
-        const index = this.configs.findIndex((config) => config.key === key);
-        const config = this.configs[index];
-
-        if (config) {
-          return config;
-        } else {
-          throw new Error(`Credential creation type not found: ${key}`);
-        }
-      } else {
-        return getType('default');
-      }
-    };
-
     return {
-      getType,
       getCredentialCreationOptions: async (urlHandler: UrlHandler) => {
         const options: CredentialCreationOption[] = [];
 

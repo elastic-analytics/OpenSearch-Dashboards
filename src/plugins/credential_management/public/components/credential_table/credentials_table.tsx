@@ -82,8 +82,6 @@ export const CredentialsTable = ({ canSave, history }: Props) => {
     credentialManagementStart,
   } = useOpenSearchDashboards<CredentialManagementContext>().services;
 
-  // console.warn("services: ", useOpenSearchDashboards<CredentialManagementContext>().services);
-
   const columns = [
     {
       field: 'credentialName',
@@ -135,7 +133,7 @@ export const CredentialsTable = ({ canSave, history }: Props) => {
     uiSettings,
     savedObjects.client,
   ]);
-  
+
   const createButton = canSave ? (
     <CreateButton options={creationOptions}>
       <FormattedMessage
