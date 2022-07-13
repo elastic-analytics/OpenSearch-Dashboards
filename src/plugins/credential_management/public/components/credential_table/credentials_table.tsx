@@ -146,8 +146,8 @@ export const CredentialsTable = ({ canSave, history }: Props) => {
 
   const onClickDelete = () => {
     Promise.resolve(deleteCredentials(savedObjects.client, selectedCredentials)).then(function () {
-      setSelectedCredentials([]);
       // TODO: Fix routing
+      setSelectedCredentials([]);
       history.push('');
     });
   };

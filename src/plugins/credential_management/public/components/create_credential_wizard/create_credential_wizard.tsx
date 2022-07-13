@@ -187,11 +187,10 @@ export class CreateCredentialWizard extends React.Component<
     );
   }
 
-  createCredential = async () => {
+  createCredential = () => {
     const { http } = this.context.services;
-    try {
       // TODO: Refactor it by registering client wrapper factory
-      await http
+    Promise.resolve(http
         .post('/api/credential_management/create', {
           body: JSON.stringify({
             credential_name: this.state.credentialName,
@@ -201,15 +200,13 @@ export class CreateCredentialWizard extends React.Component<
               password: this.state.password,
             },
           }),
-        })
+        }))
         .then((res) => {
           // TODO: Fix routing
-          this.props.history.push('');
+          this.props.history.goBack();
           console.log(res);
         });
-    } catch (e) {
-      console.log(e);
-    }
+
   };
 }
 

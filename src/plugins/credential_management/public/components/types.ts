@@ -11,6 +11,6 @@
 
 export interface CredentialsTableItem {
   id: string;
-  credentialName: string;
+  title: string;
   sort: string;
 }
