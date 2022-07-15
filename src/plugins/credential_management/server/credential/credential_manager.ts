@@ -22,9 +22,9 @@ export async function encryptionHandler(
 ) {
   const cryptoCli = CryptoCli.getInstance();
   if (credentialType === USERNAME_PASSWORD_TYPE && usernamePasswordCredentialMaterials) {
-    const { userName, password } = usernamePasswordCredentialMaterials;
+    const { user_name, password } = usernamePasswordCredentialMaterials;
     return {
-      user_name: userName,
+      user_name,
       password: await cryptoCli.encrypt(password),
     };
   } else if (credentialType === AWS_IAM_TYPE && awsIamCredentialMaterials) {
