@@ -191,7 +191,7 @@ export class CreateCredentialWizard extends React.Component<
     const { http } = this.context.services;
     try {
       // TODO: Refactor it by registering client wrapper factory
-      // TODO: Add rending spanner
+      // TODO: Add rendering spanner
       await http.post('/api/credential_management/create', {
         body: JSON.stringify({
           credential_name: this.state.credentialName,

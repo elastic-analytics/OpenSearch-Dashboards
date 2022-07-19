@@ -147,8 +147,11 @@ export const CredentialsTable = ({ canSave, history }: Props) => {
   const onClickDelete = async () => {
     await deleteCredentials(savedObjects.client, selectedCredentials);
     // TODO: Add status bar + fetch from source + refresh list
-    const temp = credentials.filter(credential => !selectedCredentials.includes(credential));
-    setCredentials(temp);
+    const fetchedCredentials: CredentialsTableItem[] = await getCredentials(
+      savedObjects.client,
+      uiSettings.get('defaultIndex')
+    );
+    setCredentials(fetchedCredentials);
     setSelectedCredentials([]);
   };
 
