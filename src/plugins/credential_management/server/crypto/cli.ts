@@ -18,7 +18,8 @@ import {
 
 import { randomBytes } from 'crypto';
 import { readFileSync, writeFile } from 'fs';
-import { safeLoad } from 'js-yaml';
+
+const defaultPath = "src/plugins/credential_management/server/crypto/crypto_material";
 
 export class CryptoCli {
   private static _instance: CryptoCli;
@@ -28,12 +29,14 @@ export class CryptoCli {
   private readonly _encrypt;
   private readonly _decrypt;
 
-  private constructor() {
+  private constructor(path: string) {
     const wrappingSuite = RawAesWrappingSuiteIdentifier.AES256_GCM_IV12_TAG16_NO_PADDING;
     // TODO: Move config to opensearch_dashboards.yam and load config during bootstrap
     // TODO: Generate materials by default during bootstrap
+
+    // TODO: Add path validation with default calling generateCryptoMaterials
     const cryptoMaterials = JSON.parse(
-      readFileSync(CryptoCli.loadConfigAndGetPath('config/credential_management.yml'), 'utf8')
+      readFileSync(path, 'utf8')
     );
 
     const input = {
@@ -61,33 +64,22 @@ export class CryptoCli {
     return result.plaintext.toString();
   }
 
-  public static getInstance(): CryptoCli {
+  // TODO: Append CryptoCli.getInstance into plugin lifecycle
+  public static getInstance(path=defaultPath): CryptoCli {
     if (!CryptoCli._instance) {
-      CryptoCli._instance = new CryptoCli();
+      CryptoCli._instance = new CryptoCli(path);
     }
 
     return CryptoCli._instance;
   }
-
-  // TODO: Fine grain config loader
-  public static loadConfigAndGetPath(path: string): string {
-    const yaml = safeLoad(readFileSync(path, 'utf8'));
-    if (yaml !== null && typeof yaml === 'object') {
-      return JSON.parse(JSON.stringify(yaml))['multiDataSource.materialPath'];
-    }
-    // console.error('Load failed! Please check the config path.');
-    // Return Default Path
-    return './crypto_material';
-  }
 }
 
-const generateCryptoMaterials = function (keyName: string, keyNamespace: string) {
+const generateCryptoMaterials = function (keyName: string, keyNamespace: string, path=defaultPath) {
   const cryptoMaterials = {
     keyName,
     keyNamespace,
     unencryptedMasterKey: randomBytes(32),
   };
-  const path = CryptoCli.loadConfigAndGetPath('config/credential_management.yml');
 
   writeFile(path, JSON.stringify(cryptoMaterials), function (err) {
     if (err) throw err;
