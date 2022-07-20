@@ -10,27 +10,30 @@
  */
 
 import {
-  PluginInitializerContext,
   CoreSetup,
   CoreStart,
   Plugin,
   Logger,
 } from '../../../core/server';
 
+import { PluginInitializerContext } from 'src/core/public';
+
 import { CredentialManagementPluginSetup, CredentialManagementPluginStart } from './types';
 import { registerRoutes } from './routes';
 import { credentialSavedObjectType } from './saved_objects';
+import { ConfigSchema } from '../config';
+import { CryptoCli } from './crypto';
 
 export class CredentialManagementPlugin
   implements Plugin<CredentialManagementPluginSetup, CredentialManagementPluginStart> {
-  private readonly logger: Logger;
+  private cryptoCli: CryptoCli;
 
-  constructor(initializerContext: PluginInitializerContext) {
-    this.logger = initializerContext.logger.get();
+  constructor(initializerContext: PluginInitializerContext<ConfigSchema>) {
+    const { materialPath } = initializerContext.config.get<ConfigSchema>();
+    this.cryptoCli = CryptoCli.getInstance(materialPath);
   }
 
   public setup(core: CoreSetup) {
-    this.logger.debug('credentialManagement: Setup');
     const router = core.http.createRouter();
 
     // Register server side APIs
@@ -43,11 +46,8 @@ export class CredentialManagementPlugin
   }
 
   public start(core: CoreStart) {
-    this.logger.debug('credentialManagement: Started');
     return {};
   }
 
-  public stop() {
-    this.logger.debug('credentialManagement: Stoped');
-  }
+  public stop() {}
 }

@@ -183,3 +183,8 @@
 # Set the value of this setting to false to suppress search usage telemetry
 # for reducing the load of OpenSearch cluster.
 # data.search.usageTelemetry.enabled: false
+
+# Set the value of this setting to true to enable credential management for managing 
+# the credentials of OpenSearch cluster.
+# credentialManagement.enabled: true
+# credentialManagement.materialPath: "src/plugins/credential_management/server/crypto/crypto_material"
