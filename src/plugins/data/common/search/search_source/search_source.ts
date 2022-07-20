@@ -141,6 +141,7 @@ export class SearchSource {
   public history: SearchRequest[] = [];
   private fields: SearchSourceFields;
   private readonly dependencies: SearchSourceDependencies;
+  public dataSourceId?: string;
 
   constructor(fields: SearchSourceFields = {}, dependencies: SearchSourceDependencies) {
     this.fields = fields;
@@ -280,8 +281,19 @@ export class SearchSource {
 
     let response;
     if (getConfig(UI_SETTINGS.COURIER_BATCH_SEARCHES)) {
+      /**
+       * batch search will issue `_msearch` requests to OpenSearch, which is not likely to work with
+       *  multiple data sources. maybe deprecate this, or simply disable it when multiple data source is supported?
+       * zengyan NOTE: Kibana is going to remove it: https://github.com/elastic/kibana/issues/55140
+       */
       response = await this.legacyFetch(searchRequest, options);
     } else {
+      if (this.dataSourceId) {
+        options = {
+          ...options,
+          dataSourceId: this.dataSourceId,
+        };
+      }
       response = await this.fetchSearch(searchRequest, options);
     }
 

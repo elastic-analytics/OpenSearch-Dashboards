@@ -148,6 +148,10 @@ const handleCourierRequest = async ({
   requestSearchSource.setField('filter', filters);
   requestSearchSource.setField('query', query);
 
+  if (indexPattern?.dataSourceId) {
+    requestSearchSource.dataSourceId = indexPattern?.dataSourceId;
+  }
+
   inspectorAdapters.requests.reset();
   const request = inspectorAdapters.requests.start(
     i18n.translate('data.functions.opensearchaggs.inspector.dataRequest.title', {
