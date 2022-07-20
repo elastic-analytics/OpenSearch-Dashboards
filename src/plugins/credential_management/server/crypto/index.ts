@@ -9,4 +9,4 @@
  * GitHub history for details.
  */
 
-export { CryptoCli } from './cli/index';
+export { CryptoCli, generateCryptoMaterials } from './cli';

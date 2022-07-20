@@ -14,12 +14,9 @@ setting up your development environment.
 ## Build and Run crypto_materials_generator
 
 ```
-npm install @types/yargs
-npm install -g ts-node typescript '@types/node'
-```
-
-```
-cd <root dir> 
-
-ts-node src/plugins/credential_management/server/crypto/crypto_materials_generator.ts --keyName='aes-name' --keyNamespace='aes-namespace'
+% yarn generate-crypto-materials --keyName='aes-name' --keyNamespace='aes-namespace'    
+yarn run v1.22.19
+$ node scripts/crypto_materials_generator --keyName=aes-name --keyNamespace=aes-namespace
+Crypto materials generated!
+✨  Done in 1.86s.
 ```

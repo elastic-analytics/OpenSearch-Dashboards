@@ -79,19 +79,20 @@ export class CryptoCli {
     // Return Default Path
     return './crypto_material';
   }
-
-  // TODO: Support configurable crypto materials file path 
-  public static generateCryptoMaterials(keyName: string, keyNamespace: string) {
-    const cryptoMaterials = {
-      keyName,
-      keyNamespace,
-      unencryptedMasterKey: randomBytes(32),
-    };
-    const path = CryptoCli.loadConfigAndGetPath('config/credential_management.yml');
-
-    writeFile(path, JSON.stringify(cryptoMaterials), function (err) {
-      if (err) throw err;
-    });
-    // console.info('crypto materials generated successfully!');
-  }
 }
+
+const generateCryptoMaterials = function (keyName: string, keyNamespace: string) {
+  const cryptoMaterials = {
+    keyName,
+    keyNamespace,
+    unencryptedMasterKey: randomBytes(32),
+  };
+  const path = CryptoCli.loadConfigAndGetPath('config/credential_management.yml');
+
+  writeFile(path, JSON.stringify(cryptoMaterials), function (err) {
+    if (err) throw err;
+  });
+  console.log('Crypto materials generated!');
+};
+
+export { generateCryptoMaterials };
