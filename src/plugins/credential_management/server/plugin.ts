@@ -8,15 +8,15 @@
  * Any modifications Copyright OpenSearch Contributors. See
  * GitHub history for details.
  */
+import { first } from 'rxjs/operators';
 
 import {
+  PluginInitializerContext,
   CoreSetup,
   CoreStart,
   Plugin,
   Logger,
 } from '../../../core/server';
-
-import { PluginInitializerContext } from 'src/core/public';
 
 import { CredentialManagementPluginSetup, CredentialManagementPluginStart } from './types';
 import { registerRoutes } from './routes';
@@ -25,15 +25,20 @@ import { ConfigSchema } from '../config';
 import { CryptoCli } from './crypto';
 
 export class CredentialManagementPlugin
-  implements Plugin<CredentialManagementPluginSetup, CredentialManagementPluginStart> {
-  private cryptoCli: CryptoCli;
+  implements Plugin<CredentialManagementPluginSetup, CredentialManagementPluginStart>
+{
+  private readonly logger: Logger;
+  private initializerContext: PluginInitializerContext<ConfigSchema>;
+
+  private cryptoCli?: CryptoCli;
 
   constructor(initializerContext: PluginInitializerContext<ConfigSchema>) {
-    const { materialPath } = initializerContext.config.get<ConfigSchema>();
-    this.cryptoCli = CryptoCli.getInstance(materialPath);
+    this.logger = initializerContext.logger.get();
+    this.initializerContext = initializerContext;
   }
 
-  public setup(core: CoreSetup) {
+  public async setup(core: CoreSetup) {
+    this.logger.debug('credential_management: Setup');
     const router = core.http.createRouter();
 
     // Register server side APIs
@@ -41,6 +46,9 @@ export class CredentialManagementPlugin
 
     // Register credential saved object type
     core.savedObjects.registerType(credentialSavedObjectType);
+
+    const config = await this.initializerContext.config.create().pipe(first()).toPromise();
+    this.logger.debug('Config: ' + config.enabled);
 
     return {};
   }
