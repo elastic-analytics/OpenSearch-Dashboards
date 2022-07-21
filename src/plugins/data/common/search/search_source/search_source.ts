@@ -289,10 +289,7 @@ export class SearchSource {
       response = await this.legacyFetch(searchRequest, options);
     } else {
       if (this.dataSourceId) {
-        options = {
-          ...options,
-          dataSourceId: this.dataSourceId,
-        };
+        searchRequest.dataSourceId = this.dataSourceId;
       }
       response = await this.fetchSearch(searchRequest, options);
     }
@@ -346,10 +343,10 @@ export class SearchSource {
     const params = getSearchParamsFromRequest(searchRequest, {
       getConfig,
     });
-
-    return search({ params, indexType: searchRequest.indexType }, options).then(({ rawResponse }) =>
-      onResponse(searchRequest, rawResponse)
-    );
+    return search(
+      { params, indexType: searchRequest.indexType, dataSourceId: searchRequest.dataSourceId },
+      options
+    ).then(({ rawResponse }) => onResponse(searchRequest, rawResponse));
   }
 
   /**

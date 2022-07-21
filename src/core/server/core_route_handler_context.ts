@@ -41,6 +41,7 @@ import {
 import { Auditor } from './audit_trail';
 import { InternalUiSettingsServiceStart, IUiSettingsClient } from './ui_settings';
 import { InternalOpenSearchDataServiceStart } from './opensearch_data/types';
+import { ConnectionError } from '@opensearch-project/opensearch/lib/errors';
 
 class CoreOpenSearchRouteHandlerContext {
   #client?: IScopedClusterClient;
@@ -74,8 +75,17 @@ class CoreOpenSearchDataSourceRouteHandlerContext {
   constructor(private readonly opensearchDataStart: InternalOpenSearchDataServiceStart) {}
 
   public async getClient(dataSourceId: string) {
-    const client = await this.opensearchDataStart.client.asDataSource(dataSourceId);
-    return client;
+    try {
+      const client = await this.opensearchDataStart.client.asDataSource(dataSourceId);
+      return client;
+    } catch (error) {
+      if (error.message) {
+        throw new Error(error.message);
+      } else
+        throw new Error(
+          `Fail to get data source client for dataSource id: [${dataSourceId}]. Detail: ${error}`
+        );
+    }
   }
 }
 

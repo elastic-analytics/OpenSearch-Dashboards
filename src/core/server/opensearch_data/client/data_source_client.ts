@@ -10,6 +10,7 @@ import { Client } from '@opensearch-project/opensearch';
 import { Logger } from '../../logging';
 import { OpenSearchClient, OpenSearchClientConfig } from '../../opensearch/client';
 import { SavedObjectsClientContract } from '../../saved_objects/types';
+import { CryptoCli } from '../../../../../src/plugins/credential_management/server/crypto/cli/crypto_cli';
 
 /**
  * TODO: update doc
@@ -39,6 +40,17 @@ export interface ICustomDataSourceClient extends IDdataSourceClient {
   close: () => Promise<void>;
 }
 
+// TODO: tmp
+interface DataSourceInfo {
+  endpoint: string;
+  credentialId: string;
+}
+
+interface CredentialInfo {
+  username: string;
+  password: string;
+}
+
 export class DataSourceClient implements ICustomDataSourceClient {
   public dataSourceClientsPool: Map<string, Client>;
   private savedObjectClient: SavedObjectsClientContract;
@@ -57,26 +69,14 @@ export class DataSourceClient implements ICustomDataSourceClient {
     // 2. throw error if isDataSourceEnabled == false, while API is called
   }
   async asDataSource(dataSourceId: string) {
-    // 1. fetch meta info of data source using saved_object client
-    const dataSource = await this.savedObjectClient.get('data-source', dataSourceId);
-
-    // 2. TODO: parse to DataSource object, need update once dataSource type is in place
-    const dataSourceObj = dataSource!.attributes as any;
-    const url = dataSourceObj.endpoint.url;
-    /**
-     * TODO:
-     * credential manager will provide "decrypt(authId: string)" to return auth
-     * Example code: cosnt {username, password} = credentialManager.decrpt(dataSourceObj.authId)
-     */
-    const username = dataSourceObj.endpoint.credentials.username;
-    const password = dataSourceObj.endpoint.credentials.password;
-
+    const { endpoint, credentialId } = await this.getDataSourceInfo(dataSourceId);
+    const { username, password } = await this.getCredentialInfo(credentialId);
     // 2. build/find client and return
     let dataSourceClient = this.dataSourceClientsPool.get(dataSourceId);
     if (!dataSourceClient) {
       // TODO: make use of existing default clientConfig to build client
       dataSourceClient = new Client({
-        node: url,
+        node: endpoint,
         auth: {
           username,
           password,
@@ -86,6 +86,33 @@ export class DataSourceClient implements ICustomDataSourceClient {
       this.dataSourceClientsPool.set(dataSourceId, dataSourceClient);
     }
     return dataSourceClient;
+  }
+
+  private async getDataSourceInfo(dataSourceId: string): Promise<DataSourceInfo> {
+    // 1. fetch meta info of data source using saved_object client
+    const dataSource = await this.savedObjectClient.get('data-source', dataSourceId);
+    // 2. TODO: parse to DataSource object, need update once dataSource type is in place
+    const dataSourceObj = dataSource!.attributes as any;
+    const endpoint = dataSourceObj.endpoint;
+    const credentialId = dataSource!.references[0].id;
+
+    return { endpoint, credentialId };
+  }
+
+  private async getCredentialInfo(credentialId: string): Promise<CredentialInfo> {
+    /**
+     * TODO:
+     * credential manager will provide "decrypt(authId: string)" to return auth
+     * Example code: cosnt {username, password} = credentialManager.decrpt(dataSourceObj.authId)
+     */
+    const credential = await this.savedObjectClient.get('credential', credentialId);
+    const credentialObj = credential!.attributes as any;
+    const { user_name: username, password: encryptedPassword } = credentialObj.credential_material;
+
+    const password = await CryptoCli.getInstance().decrypt(
+      Buffer.from(encryptedPassword, 'base64')
+    );
+    return { username, password };
   }
 
   // close anything in pool

@@ -14,26 +14,19 @@ import { CoreContext } from '../core_context';
 import { Logger } from '../logging';
 import { OpenSearchClientConfig } from '../opensearch/client';
 import { OpenSearchConfig, OpenSearchConfigType } from '../opensearch/opensearch_config';
-import { OpenSearchService } from '../opensearch/opensearch_service';
-import {
-  InternalOpenSearchServiceSetup,
-  InternalOpenSearchServiceStart,
-} from '../opensearch/types';
 import { pollOpenSearchNodesVersion } from '../opensearch/version_check/ensure_opensearch_version';
-import {
-  InternalSavedObjectsServiceSetup,
-  InternalSavedObjectsServiceStart,
-  SavedObjectsClient,
-} from '../saved_objects';
+import { InternalSavedObjectsServiceStart, SavedObjectsClient } from '../saved_objects';
 import { SavedObjectsClientContract } from '../types';
 import { DataSourceClient } from './client/data_source_client';
+import { InternalOpenSearchDataServiceSetup, InternalOpenSearchDataServiceStart } from './types';
 
 interface StartDeps {
   savedObjects: InternalSavedObjectsServiceStart;
   auditTrail: AuditTrailStart;
 }
 
-export class OpenSearchDataService implements CoreService<any, any> {
+export class OpenSearchDataService
+  implements CoreService<InternalOpenSearchDataServiceSetup, InternalOpenSearchDataServiceStart> {
   private readonly log: Logger;
   private readonly config$: Observable<OpenSearchConfig>;
   private auditorFactory?: AuditorFactory;
@@ -76,7 +69,7 @@ export class OpenSearchDataService implements CoreService<any, any> {
     this.dataSourceClient = this.createDataSourceClient('data-source', config);
 
     return {
-      dataSourceClient: this.dataSourceClient,
+      client: this.dataSourceClient,
     };
   }
 

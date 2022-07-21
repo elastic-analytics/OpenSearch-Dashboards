@@ -70,8 +70,8 @@ export const opensearchSearchStrategyProvider = (
       });
 
       try {
-        const selectedClient = options?.dataSourceId
-          ? await context.core.opensearchData.getClient(options?.dataSourceId)
+        const selectedClient = request.dataSourceId
+          ? await context.core.opensearchData.getClient(request.dataSourceId)
           : context.core.opensearch.client.asCurrentUser;
 
         const promise = shimAbortSignal(selectedClient.search(params), options?.abortSignal);

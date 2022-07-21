@@ -354,6 +354,7 @@ export class IndexPatternsService {
         fieldFormatMap,
         typeMeta,
         type,
+        dataSourceId,
       },
     } = savedObject;
 
@@ -373,6 +374,7 @@ export class IndexPatternsService {
       fields: this.fieldArrayToMap(parsedFields),
       typeMeta: parsedTypeMeta,
       type,
+      dataSourceId,
     };
   };
 
