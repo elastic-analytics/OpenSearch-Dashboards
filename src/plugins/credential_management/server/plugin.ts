@@ -25,8 +25,7 @@ import { ConfigSchema } from '../config';
 import { CryptoCli } from './crypto';
 
 export class CredentialManagementPlugin
-  implements Plugin<CredentialManagementPluginSetup, CredentialManagementPluginStart>
-{
+  implements Plugin<CredentialManagementPluginSetup, CredentialManagementPluginStart> {
   private readonly logger: Logger;
   private initializerContext: PluginInitializerContext<ConfigSchema>;
 
@@ -39,17 +38,20 @@ export class CredentialManagementPlugin
 
   public async setup(core: CoreSetup) {
     this.logger.debug('credential_management: Setup');
-    const router = core.http.createRouter();
+    const { enabled, materialPath } = await this.initializerContext.config
+      .create()
+      .pipe(first())
+      .toPromise();
 
-    // Register server side APIs
-    registerRoutes(router);
-
-    // Register credential saved object type
-    core.savedObjects.registerType(credentialSavedObjectType);
-
-    const config = await this.initializerContext.config.create().pipe(first()).toPromise();
-    this.logger.debug('Config: ' + config.enabled);
-
+    if (enabled) {
+      const router = core.http.createRouter();
+      // Register server side APIs
+      registerRoutes(router);
+      // Register credential saved object type
+      core.savedObjects.registerType(credentialSavedObjectType);
+      // Instantiate CryptoCli for encryption / decryption
+      this.cryptoCli = CryptoCli.getInstance(materialPath);
+    }
     return {};
   }
 

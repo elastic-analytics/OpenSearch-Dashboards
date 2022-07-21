@@ -14,7 +14,7 @@ import { schema, TypeOf } from '@osd/config-schema';
 export const configSchema = schema.object({
   enabled: schema.boolean({ defaultValue: false }),
   materialPath: schema.string({
-    defaultValue: 'src/plugins/credential_management/server/crypto/crypto_material',
+    defaultValue: 'data/crypto_material',
   }),
 });
 
