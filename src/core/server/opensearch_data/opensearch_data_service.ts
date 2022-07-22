@@ -7,14 +7,13 @@
  */
 
 import { Observable, Subject } from 'rxjs';
-import { first, map, shareReplay, takeUntil } from 'rxjs/operators';
+import { first, map } from 'rxjs/operators';
 import { CoreService } from 'src/core/types';
 import { AuditorFactory, AuditTrailStart } from '../audit_trail';
 import { CoreContext } from '../core_context';
 import { Logger } from '../logging';
 import { OpenSearchClientConfig } from '../opensearch/client';
 import { OpenSearchConfig, OpenSearchConfigType } from '../opensearch/opensearch_config';
-import { pollOpenSearchNodesVersion } from '../opensearch/version_check/ensure_opensearch_version';
 import { InternalSavedObjectsServiceStart, SavedObjectsClient } from '../saved_objects';
 import { SavedObjectsClientContract } from '../types';
 import { DataSourceClient } from './client/data_source_client';
@@ -29,8 +28,10 @@ export class OpenSearchDataService
   implements CoreService<InternalOpenSearchDataServiceSetup, InternalOpenSearchDataServiceStart> {
   private readonly log: Logger;
   private readonly config$: Observable<OpenSearchConfig>;
+  //@ts-ignore
   private auditorFactory?: AuditorFactory;
   private stop$ = new Subject();
+  //@ts-ignore
   private opensearchDashboardsVersion: string;
   private savedObjectClient?: SavedObjectsClientContract;
   private dataSourceClient?: DataSourceClient;
@@ -46,7 +47,7 @@ export class OpenSearchDataService
   public async setup(): Promise<any> {
     this.log.debug('Setting up opensearch data service');
 
-    const config = await this.config$.pipe(first()).toPromise();
+    // const config = await this.config$.pipe(first()).toPromise(); //TODO: add later
 
     // TODO: update accordingly when we decide how to check node/version compatibility in setup stage
 

@@ -148,9 +148,8 @@ const handleCourierRequest = async ({
   requestSearchSource.setField('filter', filters);
   requestSearchSource.setField('query', query);
 
-  if (indexPattern?.dataSourceId) {
-    requestSearchSource.dataSourceId = indexPattern?.dataSourceId;
-  }
+  const dataSourceRef = indexPattern?.dataSourceRef;
+  requestSearchSource.dataSourceId = dataSourceRef ? dataSourceRef.id : undefined;
 
   inspectorAdapters.requests.reset();
   const request = inspectorAdapters.requests.start(

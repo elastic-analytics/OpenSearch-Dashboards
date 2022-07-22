@@ -41,7 +41,6 @@ import {
 import { Auditor } from './audit_trail';
 import { InternalUiSettingsServiceStart, IUiSettingsClient } from './ui_settings';
 import { InternalOpenSearchDataServiceStart } from './opensearch_data/types';
-import { ConnectionError } from '@opensearch-project/opensearch/lib/errors';
 
 class CoreOpenSearchRouteHandlerContext {
   #client?: IScopedClusterClient;

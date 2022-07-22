@@ -10,6 +10,7 @@ import { Client } from '@opensearch-project/opensearch';
 import { Logger } from '../../logging';
 import { OpenSearchClient, OpenSearchClientConfig } from '../../opensearch/client';
 import { SavedObjectsClientContract } from '../../saved_objects/types';
+// @ts-ignore
 import { CryptoCli } from '../../../../../src/plugins/credential_management/server/crypto/cli/crypto_cli';
 
 /**
@@ -54,10 +55,13 @@ interface CredentialInfo {
 export class DataSourceClient implements ICustomDataSourceClient {
   public dataSourceClientsPool: Map<string, Client>;
   private savedObjectClient: SavedObjectsClientContract;
-  private isDataSourceFeautureEnabled = true;
+  private isDataSourceFeatureEnabled = true;
   private isClosed = false;
+  // TODO: need add size limit(maps to config item in osd.yml)
+  private CLIENT_POOL_SIZE_LIMIT = 50;
 
   constructor(
+    // @ts-ignore
     private readonly config: OpenSearchClientConfig,
     savedObjectClient: SavedObjectsClientContract,
     logger: Logger
@@ -69,6 +73,9 @@ export class DataSourceClient implements ICustomDataSourceClient {
     // 2. throw error if isDataSourceEnabled == false, while API is called
   }
   async asDataSource(dataSourceId: string) {
+    if (!this.isDataSourceFeatureEnabled) {
+      throw Error('isDataSourceFeatureEnabled == false, please enable the feature in osd.yml');
+    }
     const { endpoint, credentialId } = await this.getDataSourceInfo(dataSourceId);
     const { username, password } = await this.getCredentialInfo(credentialId);
     // 2. build/find client and return
@@ -83,7 +90,7 @@ export class DataSourceClient implements ICustomDataSourceClient {
         },
       });
       // update pool
-      this.dataSourceClientsPool.set(dataSourceId, dataSourceClient);
+      this.updateDataSourceClientPool(dataSourceId, dataSourceClient);
     }
     return dataSourceClient;
   }
@@ -97,6 +104,15 @@ export class DataSourceClient implements ICustomDataSourceClient {
     const credentialId = dataSource!.references[0].id;
 
     return { endpoint, credentialId };
+  }
+
+  private updateDataSourceClientPool(dataSourceId: string, dataSourceClient: Client) {
+    // TODO: need to optimize to pop up least recent used client instead of first one
+    if (this.dataSourceClientsPool.size > this.CLIENT_POOL_SIZE_LIMIT) {
+      const [firstDataSourceId] = this.dataSourceClientsPool.keys();
+      this.dataSourceClientsPool.delete(firstDataSourceId);
+      this.dataSourceClientsPool.set(dataSourceId, dataSourceClient);
+    }
   }
 
   private async getCredentialInfo(credentialId: string): Promise<CredentialInfo> {

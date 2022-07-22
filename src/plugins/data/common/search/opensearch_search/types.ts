@@ -43,10 +43,6 @@ export interface ISearchOptions {
    * Use this option to force using a specific server side search strategy. Leave empty to use the default strategy.
    */
   strategy?: string;
-  /**
-   * Use this option to attache a data source id. Leave empty if the request is submitted to default OpenSearch cluster
-   */
-  dataSourceId?: string;
 }
 
 export type ISearchRequestParams<T = Record<string, any>> = {
