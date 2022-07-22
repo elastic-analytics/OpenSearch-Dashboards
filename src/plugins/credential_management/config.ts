@@ -12,6 +12,12 @@
 import { schema, TypeOf } from '@osd/config-schema';
 
 export const configSchema = schema.object({
+  keyName: schema.string({
+    defaultValue: 'keyName',
+  }),
+  keyNamespace: schema.string({
+    defaultValue: 'keyNamespace',
+  }),
   materialPath: schema.string({
     defaultValue: 'data/crypto_material',
   }),

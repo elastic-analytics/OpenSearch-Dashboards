@@ -247,7 +247,7 @@ export default () =>
         applicationTitle: Joi.any().default(''),
       }),
       multipleDataSource: Joi.object({
-        enabled: Joi.boolean().default(true),
+        enabled: Joi.boolean().default(false),
       }),
     }).default(),
 

@@ -44,10 +44,11 @@ export class CredentialManagementPlugin
       .toPromise();
 
     if (opensearchDashboards.multipleDataSource.enabled) {
-      const { materialPath } = await this.initializerContext.config
-        .create()
-        .pipe(first())
-        .toPromise();
+      const {
+        materialPath,
+        keyName,
+        keyNamespace,
+      } = await this.initializerContext.config.create().pipe(first()).toPromise();
 
       const router = core.http.createRouter();
       // Register server side APIs
@@ -55,7 +56,7 @@ export class CredentialManagementPlugin
       // Register credential saved object type
       core.savedObjects.registerType(credentialSavedObjectType);
       // Instantiate CryptoCli for encryption / decryption
-      this.cryptoCli = CryptoCli.getInstance(materialPath);
+      this.cryptoCli = CryptoCli.getInstance(materialPath, keyName, keyNamespace);
     }
     return {};
   }
