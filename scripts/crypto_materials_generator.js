@@ -12,6 +12,6 @@
 require('../src/setup_node_env');
 
 var args = require('yargs').argv;
-var { generateCryptoMaterials } = require('../src/plugins/credential_management/server/crypto');
+var generateCryptoMaterials = require('../src/plugins/credential_management/server/crypto/crypto_cli');
 
-generateCryptoMaterials(args.keyName, args.keyNamespace);
+generateCryptoMaterials(args.path, args.keyName, args.keyNamespace);

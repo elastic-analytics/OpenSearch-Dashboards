@@ -16,9 +16,8 @@ import {
   RawAesWrappingSuiteIdentifier,
 } from '@aws-crypto/client-node';
 
-import { readFileSync } from 'fs';
-
-import { generateCryptoMaterials } from './cli';
+import { randomBytes } from 'crypto';
+import { readFileSync, writeFileSync } from 'fs';
 
 const defaultPath = 'data/crypto_material';
 
@@ -82,3 +81,20 @@ export class CryptographySingleton {
     return CryptographySingleton._instance;
   }
 }
+
+export const generateCryptoMaterials = function (
+  path = defaultPath,
+  keyName = 'keyName',
+  keyNamespace = 'keyNamespace'
+) {
+  const cryptoMaterials = {
+    keyName,
+    keyNamespace,
+    unencryptedMasterKey: randomBytes(32),
+  };
+  const input = JSON.stringify(cryptoMaterials);
+  writeFileSync(path, input);
+  console.log('Crypto materials generated!');
+
+  return input;
+};

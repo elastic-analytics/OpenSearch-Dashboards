@@ -25,3 +25,4 @@ export function plugin(initializerContext: PluginInitializerContext) {
 }
 
 export { CredentialManagementPluginSetup, CredentialManagementPluginStart } from './types';
+export { CryptographySingleton, generateCryptoMaterials } from './crypto';

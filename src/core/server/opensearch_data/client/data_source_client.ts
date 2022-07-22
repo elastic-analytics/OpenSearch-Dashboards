@@ -11,7 +11,7 @@ import { Logger } from '../../logging';
 import { OpenSearchClient, OpenSearchClientConfig } from '../../opensearch/client';
 import { SavedObjectsClientContract } from '../../saved_objects/types';
 // @ts-ignore
-import { CryptographySingleton } from '../../../../../src/plugins/credential_management/server/crypto';
+import { CryptographySingleton } from '../../../../../src/plugins/credential_management/server/crypto/singleton/cryptography_singleton';
 
 /**
  * TODO: update doc

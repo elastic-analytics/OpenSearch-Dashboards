@@ -22,14 +22,14 @@ import { CredentialManagementPluginSetup, CredentialManagementPluginStart } from
 import { registerRoutes } from './routes';
 import { credentialSavedObjectType } from './saved_objects';
 import { ConfigSchema } from '../config';
-import { CryptoCli } from './crypto';
+import { CryptographySingleton } from './crypto';
 
 export class CredentialManagementPlugin
   implements Plugin<CredentialManagementPluginSetup, CredentialManagementPluginStart> {
   private readonly logger: Logger;
   private initializerContext: PluginInitializerContext<ConfigSchema>;
 
-  private cryptoCli?: CryptoCli;
+  private cryptographySingleton?: CryptographySingleton;
 
   constructor(initializerContext: PluginInitializerContext<ConfigSchema>) {
     this.logger = initializerContext.logger.get();
@@ -56,7 +56,11 @@ export class CredentialManagementPlugin
       // Register credential saved object type
       core.savedObjects.registerType(credentialSavedObjectType);
       // Instantiate CryptoCli for encryption / decryption
-      this.cryptoCli = CryptoCli.getInstance(materialPath, keyName, keyNamespace);
+      this.cryptographySingleton = CryptographySingleton.getInstance(
+        materialPath,
+        keyName,
+        keyNamespace
+      );
     }
     return {};
   }
