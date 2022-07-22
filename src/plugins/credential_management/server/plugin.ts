@@ -38,20 +38,19 @@ export class CredentialManagementPlugin
 
   public async setup(core: CoreSetup) {
     this.logger.debug('credential_management: Setup');
-    const { enabled, materialPath } = await this.initializerContext.config
+    const { materialPath } = await this.initializerContext.config
       .create()
       .pipe(first())
       .toPromise();
 
-    if (enabled) {
-      const router = core.http.createRouter();
-      // Register server side APIs
-      registerRoutes(router);
-      // Register credential saved object type
-      core.savedObjects.registerType(credentialSavedObjectType);
-      // Instantiate CryptoCli for encryption / decryption
-      this.cryptoCli = CryptoCli.getInstance(materialPath);
-    }
+    const router = core.http.createRouter();
+    // Register server side APIs
+    registerRoutes(router);
+    // Register credential saved object type
+    core.savedObjects.registerType(credentialSavedObjectType);
+    // Instantiate CryptoCli for encryption / decryption
+    this.cryptoCli = CryptoCli.getInstance(materialPath);
+
     return {};
   }
 

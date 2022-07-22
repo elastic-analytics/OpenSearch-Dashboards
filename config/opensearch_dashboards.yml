@@ -184,9 +184,5 @@
 # for reducing the load of OpenSearch cluster.
 # data.search.usageTelemetry.enabled: false
 
-# Set the value of this setting to true to enable credential management for managing 
-# the credentials of OpenSearch cluster.
-# It's enabled now for for playground env CD
-# TODO: Disable it for release
-credential_management.enabled: true
+# Set the value of this setting to custermize config 
 # credential_management.materialPath: "path/to/your/crypto_material"
