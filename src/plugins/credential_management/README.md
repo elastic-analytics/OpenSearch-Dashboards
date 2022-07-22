@@ -15,7 +15,7 @@ setting up your development environment.
 1. To enable this feature, override config/opensearch_dashboards.yml
 
 ```
-credential_management.enabled: true
+opensearchDashboards.multipleDataSource.enabled: true
 ```
 
 2. To setup path for crypto material, override config/opensearch_dashboards.yml
