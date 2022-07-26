@@ -87,7 +87,7 @@ export class CreateIndexPatternWizard extends Component<
       indexPattern: '',
       allIndices: [],
       remoteClustersExist: false,
-      isInitiallyLoadingIndices: true,
+      isInitiallyLoadingIndices: false,
       toasts: [],
       indexPatternCreationType: context.services.indexPatternManagementStart.creation.getType(type),
       docLinks: context.services.docLinks,
@@ -96,7 +96,7 @@ export class CreateIndexPatternWizard extends Component<
   }
 
   async UNSAFE_componentWillMount() {
-    this.fetchData();
+    // this.fetchData();
   }
 
   catchAndWarn = async (
@@ -144,7 +144,13 @@ export class CreateIndexPatternWizard extends Component<
     // query local and remote indices, updating state independently
     ensureMinimumTime(
       this.catchAndWarn(
-        getIndices({ http, getIndexTags, pattern: '*', searchClient }),
+        getIndices({ 
+          http, 
+          getIndexTags, 
+          pattern: '*', 
+          searchClient, 
+          ...(this.state.dataSourcesJson) && {dataSourceId: JSON.parse(this.state.dataSourcesJson)[0].id}
+          }),
 
         [],
         indicesFailMsg
@@ -156,7 +162,7 @@ export class CreateIndexPatternWizard extends Component<
     this.catchAndWarn(
       // if we get an error from remote cluster query, supply fallback value that allows user entry.
       // ['a'] is fallback value
-      getIndices({ http, getIndexTags, pattern: '*:*', searchClient }),
+      getIndices({ http, getIndexTags, pattern: '*:*', searchClient, ...(this.state.dataSourcesJson) && {dataSourceId: JSON.parse(this.state.dataSourcesJson)[0].id} }),
 
       ['a'],
       clustersFailMsg
@@ -225,8 +231,10 @@ export class CreateIndexPatternWizard extends Component<
     this.setState({ step: 0 });
   };
 
-  proceedToIndexPatternStep = (dataSourcesJson: string) => {
-    this.setState({ step: 1, dataSourcesJson });
+  proceedToIndexPatternStep = async (dataSourcesJson: string) => {
+    this.setState({isInitiallyLoadingIndices: true});
+    await this.setState({ step: 1, dataSourcesJson }, this.fetchData);
+    this.setState({isInitiallyLoadingIndices: false});
   };
 
   renderHeader() {

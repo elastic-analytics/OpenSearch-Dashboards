@@ -149,13 +149,15 @@ export const IndexPatternTable = ({ canSave, history }: Props) => {
   };
 
   useEffect(() => {
-    getIndices({ http, pattern: '*', searchClient }).then((dataSources) => {
-      setSources(dataSources.filter(removeAliases));
-      setIsLoadingSources(false);
-    });
-    getIndices({ http, pattern: '*:*', searchClient }).then((dataSources) =>
-      setRemoteClustersExist(!!dataSources.filter(removeAliases).length)
-    );
+    // getIndices({ http, pattern: '*', searchClient }).then((dataSources) => {
+    //   setSources(dataSources.filter(removeAliases));
+    //   setIsLoadingSources(false);
+    // });
+    // getIndices({ http, pattern: '*:*', searchClient }).then((dataSources) =>
+    //   setRemoteClustersExist(!!dataSources.filter(removeAliases).length)
+    // );
+    setIsLoadingSources(false);
+    setRemoteClustersExist(false);
   }, [http, creationOptions, searchClient]);
 
   chrome.docTitle.change(title);
@@ -207,7 +209,8 @@ export const IndexPatternTable = ({ canSave, history }: Props) => {
     return <></>;
   }
 
-  const hasDataIndices = sources.some(({ name }: MatchedItem) => !name.startsWith('.'));
+  // const hasDataIndices = sources.some(({ name }: MatchedItem) => !name.startsWith('.'));
+  const hasDataIndices = true;
 
   if (!indexPatterns.length) {
     if (!hasDataIndices && !remoteClustersExist) {

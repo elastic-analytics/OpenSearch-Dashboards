@@ -118,15 +118,24 @@ export const getIndicesViaResolve = async ({
   getIndexTags,
   pattern,
   showAllIndices,
+  dataSourceId,
 }: {
   http: HttpStart;
   getIndexTags: IndexPatternCreationConfig['getIndexTags'];
   pattern: string;
   showAllIndices: boolean;
-}) =>
+  dataSourceId: string | undefined;
+}) => {
+  const query = {} as any;
+  if (showAllIndices) {
+    query.expand_wildcards = 'all';
+  }
+  if (dataSourceId) {
+    query.data_source = dataSourceId;
+  }
   http
     .get<ResolveIndexResponse>(`/internal/index-pattern-management/resolve_index/${pattern}`, {
-      query: showAllIndices ? { expand_wildcards: 'all' } : undefined,
+      query,
     })
     .then((response) => {
       if (!response) {
@@ -135,7 +144,7 @@ export const getIndicesViaResolve = async ({
         return responseToItemArray(response, getIndexTags);
       }
     });
-
+  };
 /**
  * Takes two MatchedItem[]s and returns a merged set, with the second set prrioritized over the first based on name
  *
@@ -168,12 +177,14 @@ export async function getIndices({
   pattern: rawPattern,
   showAllIndices = false,
   searchClient,
+  dataSourceId,
 }: {
   http: HttpStart;
   getIndexTags?: IndexPatternCreationConfig['getIndexTags'];
   pattern: string;
   showAllIndices?: boolean;
   searchClient: DataPublicPluginStart['search']['search'];
+  dataSourceId?: string;
 }): Promise<MatchedItem[]> {
   const pattern = rawPattern.trim();
   const isCCS = pattern.indexOf(':') !== -1;
@@ -202,6 +213,7 @@ export async function getIndices({
     getIndexTags,
     pattern,
     showAllIndices,
+    dataSourceId,
   }).catch(() => []);
   requests.push(promiseResolve);
 

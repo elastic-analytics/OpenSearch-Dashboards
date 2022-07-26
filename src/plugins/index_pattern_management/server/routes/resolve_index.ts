@@ -28,6 +28,7 @@
  * under the License.
  */
 
+import { IndicesResolveIndexRequest } from '@opensearch-project/opensearch/api/types';
 import { schema } from '@osd/config-schema';
 import { IRouter } from 'src/core/server';
 
@@ -49,6 +50,7 @@ export function registerResolveIndexRoute(router: IRouter): void {
               schema.literal('none'),
             ])
           ),
+          data_source: schema.maybe(schema.string()),
         }),
       },
     },
@@ -56,6 +58,14 @@ export function registerResolveIndexRoute(router: IRouter): void {
       const queryString = req.query.expand_wildcards
         ? { expand_wildcards: req.query.expand_wildcards }
         : null;
+
+      if (req.query.data_source) {
+        const result = await (await context.core.opensearchData.getClient(req.query.data_source)).indices.resolveIndex({
+          name: encodeURIComponent(req.params.query),
+          expand_wildcards: req.query.expand_wildcards,
+        })
+        return res.ok({ body: result });
+      }
       const result = await context.core.opensearch.legacy.client.callAsCurrentUser(
         'transport.request',
         {
