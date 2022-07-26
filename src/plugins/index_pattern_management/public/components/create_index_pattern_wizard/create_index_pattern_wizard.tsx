@@ -232,9 +232,13 @@ export class CreateIndexPatternWizard extends Component<
   };
 
   proceedToIndexPatternStep = async (dataSourcesJson: string) => {
-    this.setState({isInitiallyLoadingIndices: true});
-    await this.setState({ step: 1, dataSourcesJson }, this.fetchData);
-    this.setState({isInitiallyLoadingIndices: false});
+    this.setState({ isInitiallyLoadingIndices: true, dataSourcesJson }, async () => {
+      await this.fetchData();
+      this.forceUpdate();
+      this.setState({step: 1, isInitiallyLoadingIndices: false});
+    });
+    // await this.fetchData();
+    // this.setState({step: 1, isInitiallyLoadingIndices: false});
   };
 
   renderHeader() {

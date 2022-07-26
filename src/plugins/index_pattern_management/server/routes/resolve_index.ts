@@ -28,7 +28,6 @@
  * under the License.
  */
 
-import { IndicesResolveIndexRequest } from '@opensearch-project/opensearch/api/types';
 import { schema } from '@osd/config-schema';
 import { IRouter } from 'src/core/server';
 
@@ -63,8 +62,9 @@ export function registerResolveIndexRoute(router: IRouter): void {
         const result = await (await context.core.opensearchData.getClient(req.query.data_source)).indices.resolveIndex({
           name: encodeURIComponent(req.params.query),
           expand_wildcards: req.query.expand_wildcards,
-        })
-        return res.ok({ body: result });
+        });
+        console.log(result.body);
+        return res.ok({ body: result.body });
       }
       const result = await context.core.opensearch.legacy.client.callAsCurrentUser(
         'transport.request',
