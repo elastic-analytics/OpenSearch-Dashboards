@@ -55,6 +55,7 @@ interface StepIndexPatternProps {
   goToNextStep: (query: string, timestampField?: string) => void;
   initialQuery?: string;
   showSystemIndices: boolean;
+  dataSourceId?: string;
 }
 
 interface StepIndexPatternState {
@@ -168,7 +169,7 @@ export class StepIndexPattern extends Component<StepIndexPatternProps, StepIndex
 
     if (query.endsWith('*')) {
       const exactMatchedIndices = await ensureMinimumTime(
-        getIndices({ http, getIndexTags, pattern: query, showAllIndices, searchClient })
+        getIndices({ http, getIndexTags, pattern: query, showAllIndices, searchClient, ...(this.props.dataSourceId) && {dataSourceId: this.props.dataSourceId} })
       );
       // If the search changed, discard this state
       if (query !== this.lastQuery) {
@@ -179,8 +180,8 @@ export class StepIndexPattern extends Component<StepIndexPatternProps, StepIndex
     }
 
     const [partialMatchedIndices, exactMatchedIndices] = await ensureMinimumTime([
-      getIndices({ http, getIndexTags, pattern: `${query}*`, showAllIndices, searchClient }),
-      getIndices({ http, getIndexTags, pattern: query, showAllIndices, searchClient }),
+      getIndices({ http, getIndexTags, pattern: `${query}*`, showAllIndices, searchClient, ...(this.props.dataSourceId) && {dataSourceId: this.props.dataSourceId} }),
+      getIndices({ http, getIndexTags, pattern: query, showAllIndices, searchClient, ...(this.props.dataSourceId) && {dataSourceId: this.props.dataSourceId} }),
     ]);
 
     // If the search changed, discard this state

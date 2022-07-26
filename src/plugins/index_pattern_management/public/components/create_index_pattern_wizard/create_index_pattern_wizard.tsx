@@ -159,16 +159,16 @@ export class CreateIndexPatternWizard extends Component<
       this.setState({ allIndices, isInitiallyLoadingIndices: false })
     );
 
-    this.catchAndWarn(
-      // if we get an error from remote cluster query, supply fallback value that allows user entry.
-      // ['a'] is fallback value
-      getIndices({ http, getIndexTags, pattern: '*:*', searchClient, ...(this.state.dataSourcesJson) && {dataSourceId: JSON.parse(this.state.dataSourcesJson)[0].id} }),
+    // this.catchAndWarn(
+    //   // if we get an error from remote cluster query, supply fallback value that allows user entry.
+    //   // ['a'] is fallback value
+    //   getIndices({ http, getIndexTags, pattern: '*:*', searchClient, ...(this.state.dataSourcesJson) && {dataSourceId: JSON.parse(this.state.dataSourcesJson)[0].id} }),
 
-      ['a'],
-      clustersFailMsg
-    ).then((remoteIndices: string[] | MatchedItem[]) =>
-      this.setState({ remoteClustersExist: !!remoteIndices.length })
-    );
+    //   ['a'],
+    //   clustersFailMsg
+    // ).then((remoteIndices: string[] | MatchedItem[]) =>
+    //   this.setState({ remoteClustersExist: !!remoteIndices.length })
+    // );
   };
 
   createIndexPattern = async (timeFieldName: string | undefined, indexPatternId: string) => {

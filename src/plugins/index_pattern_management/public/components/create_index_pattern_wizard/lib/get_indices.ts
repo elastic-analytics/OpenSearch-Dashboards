@@ -124,7 +124,7 @@ export const getIndicesViaResolve = async ({
   getIndexTags: IndexPatternCreationConfig['getIndexTags'];
   pattern: string;
   showAllIndices: boolean;
-  dataSourceId: string | undefined;
+  dataSourceId?: string;
 }) => {
   const query = {} as any;
   if (showAllIndices) {
@@ -141,7 +141,9 @@ export const getIndicesViaResolve = async ({
       if (!response) {
         return [];
       } else {
-        return responseToItemArray(response, getIndexTags);
+        // return responseToItemArray(response, getIndexTags);
+        const result = responseToItemArray(response, getIndexTags);
+        return result;
       }
     });
   };
@@ -228,13 +230,19 @@ export async function getIndices({
     requests.push(promiseSearch);
   }
 
-  const responses = await Promise.all(requests);
+  // const responses = await Promise.all(requests);
+  const responses = [await promiseResolve];
 
   if (responses.length === 2) {
     const [resolveResponse, searchResponse] = responses;
-    return dedupeMatchedItems(searchResponse, resolveResponse);
+    //return dedupeMatchedItems(searchResponse, resolveResponse);
+
+    const result = dedupeMatchedItems(searchResponse, resolveResponse);
+    return result;
   } else {
-    return responses[0];
+    // return responses[0];
+    const result = responses[0];
+    return result || [];
   }
 }
 
