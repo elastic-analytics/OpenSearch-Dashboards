@@ -133,16 +133,20 @@ export const getIndicesViaResolve = async ({
   if (dataSourceId) {
     query.data_source = dataSourceId;
   }
-  http
+  return http
     .get<ResolveIndexResponse>(`/internal/index-pattern-management/resolve_index/${pattern}`, {
       query,
     })
     .then((response) => {
       if (!response) {
+        console.log("returning empty... ")
+
         return [];
       } else {
         // return responseToItemArray(response, getIndexTags);
         const result = responseToItemArray(response, getIndexTags);
+        console.log("result -> ", result)
+
         return result;
       }
     });
@@ -217,6 +221,7 @@ export async function getIndices({
     showAllIndices,
     dataSourceId,
   }).catch(() => []);
+
   requests.push(promiseResolve);
 
   if (isCCS) {
@@ -232,6 +237,8 @@ export async function getIndices({
 
   // const responses = await Promise.all(requests);
   const responses = [await promiseResolve];
+
+  console.log("responses -> ", responses)
 
   if (responses.length === 2) {
     const [resolveResponse, searchResponse] = responses;

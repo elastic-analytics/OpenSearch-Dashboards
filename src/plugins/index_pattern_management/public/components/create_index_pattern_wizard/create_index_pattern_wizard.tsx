@@ -142,7 +142,7 @@ export class CreateIndexPatternWizard extends Component<
     );
 
     // query local and remote indices, updating state independently
-    ensureMinimumTime(
+    return ensureMinimumTime(
       this.catchAndWarn(
         getIndices({ 
           http, 
@@ -155,9 +155,11 @@ export class CreateIndexPatternWizard extends Component<
         [],
         indicesFailMsg
       )
-    ).then((allIndices: MatchedItem[]) =>
-      this.setState({ allIndices, isInitiallyLoadingIndices: false })
-    );
+    ).then((allIndices: MatchedItem[]) => {
+       console.log("getIndices returned getIndices",allIndices);
+      this.setState({ allIndices, isInitiallyLoadingIndices: false });
+    }
+    ).then(() => console.log("allIndices33->",this.state.allIndices));
 
     // this.catchAndWarn(
     //   // if we get an error from remote cluster query, supply fallback value that allows user entry.
@@ -233,7 +235,9 @@ export class CreateIndexPatternWizard extends Component<
 
   proceedToIndexPatternStep = async (dataSourcesJson: string) => {
     this.setState({ isInitiallyLoadingIndices: true, dataSourcesJson }, async () => {
-      await this.fetchData();
+      await this.fetchData(); // this should wait on allIndices been set
+      console.log("Finished fetching")
+      console.log("allIndices->",this.state.allIndices);
       this.forceUpdate();
       this.setState({step: 1, isInitiallyLoadingIndices: false});
     });
