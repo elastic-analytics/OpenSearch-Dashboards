@@ -78,7 +78,7 @@ export class IndicesList extends React.Component<IndicesListProps, IndicesListSt
   }
 
   UNSAFE_componentWillReceiveProps(nextProps: IndicesListProps) {
-    console.log("props.indices.length->", this.props.indices.length);
+    // console.log("props.indices.length->", this.props.indices.length);
     if (nextProps.indices.length !== this.props.indices.length) {
       this.pager.setTotalItems(nextProps.indices.length);
       this.resetPageTo0();

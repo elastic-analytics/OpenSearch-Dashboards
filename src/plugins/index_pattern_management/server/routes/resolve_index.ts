@@ -63,7 +63,7 @@ export function registerResolveIndexRoute(router: IRouter): void {
           name: encodeURIComponent(req.params.query),
           expand_wildcards: req.query.expand_wildcards,
         });
-        console.log(result.body);
+        // console.log(result.body);
         return res.ok({ body: result.body });
       }
       const result = await context.core.opensearch.legacy.client.callAsCurrentUser(

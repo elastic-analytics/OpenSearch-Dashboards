@@ -31,6 +31,7 @@
 import { schema } from '@osd/config-schema';
 import { HttpServiceSetup, RequestHandlerContext } from 'opensearch-dashboards/server';
 import { IndexPatternsFetcher } from './fetcher';
+import { processFieldCapsRespons } from './fetcher/lib/field_capabilities/field_capabilities';
 
 export function registerRoutes(http: HttpServiceSetup) {
   const parseMetaFields = (metaFields: string | string[]) => {
@@ -53,10 +54,25 @@ export function registerRoutes(http: HttpServiceSetup) {
           meta_fields: schema.oneOf([schema.string(), schema.arrayOf(schema.string())], {
             defaultValue: [],
           }),
+          dataSourceId: schema.maybe(schema.string()),
         }),
       },
     },
     async (context, request, response) => {
+      if (request.query.dataSourceId) {
+        const openSearchClient = await context.core.opensearchData.getClient(request.query.dataSourceId);
+        const result = await openSearchClient.fieldCaps({
+          index: request.query.pattern,
+          fields: '*',
+          ignore_unavailable: true,
+          // ignoreUnavailable: true,
+          allow_no_indices: true,
+        });
+        const processedResult = processFieldCapsRespons(result.body as any, 
+          Array.isArray(request.query.meta_fields) ? request.query.meta_fields : [request.query.meta_fields]);
+        return response.ok({body: { fields: processedResult}});
+      }
+      
       const { callAsCurrentUser } = context.core.opensearch.legacy.client;
       const indexPatterns = new IndexPatternsFetcher(callAsCurrentUser);
       const { pattern, meta_fields: metaFields } = request.query;

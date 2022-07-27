@@ -139,14 +139,13 @@ export const getIndicesViaResolve = async ({
     })
     .then((response) => {
       if (!response) {
-        console.log("returning empty... ")
+        // console.log("returning empty... ")
 
         return [];
       } else {
         // return responseToItemArray(response, getIndexTags);
         const result = responseToItemArray(response, getIndexTags);
-        console.log("result -> ", result)
-
+        // console.log("result -> ", result)
         return result;
       }
     });
@@ -235,10 +234,9 @@ export async function getIndices({
     requests.push(promiseSearch);
   }
 
-  // const responses = await Promise.all(requests);
-  const responses = [await promiseResolve];
+  const responses = await Promise.all(requests);
 
-  console.log("responses -> ", responses)
+  // console.log("responses -> ", responses)
 
   if (responses.length === 2) {
     const [resolveResponse, searchResponse] = responses;

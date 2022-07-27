@@ -114,6 +114,7 @@ export interface GetFieldsOptions {
   params?: any;
   lookBack?: boolean;
   metaFields?: string[];
+  dataSourceId?: string;
 }
 
 export interface IIndexPatternsApiClient {

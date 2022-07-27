@@ -72,7 +72,7 @@ export class IndexPatternsApiClient implements IIndexPatternsApiClient {
   }
 
   getFieldsForWildcard(options: GetFieldsOptions = {}) {
-    const { pattern, metaFields, type, params } = options;
+    const { pattern, metaFields, type, params, dataSourceId } = options;
 
     let url;
     let query;
@@ -83,12 +83,14 @@ export class IndexPatternsApiClient implements IIndexPatternsApiClient {
         pattern,
         meta_fields: metaFields,
         params: JSON.stringify(params),
+        dataSourceId,
       };
     } else {
       url = this._getUrl(['_fields_for_wildcard']);
       query = {
         pattern,
         meta_fields: metaFields,
+        dataSourceId,
       };
     }
 

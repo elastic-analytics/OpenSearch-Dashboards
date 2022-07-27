@@ -246,6 +246,7 @@ export class IndexPatternsService {
       metaFields,
       type: options.type,
       params: options.params || {},
+      dataSourceId: options.dataSourceId,
     });
   };
 
@@ -270,7 +271,9 @@ export class IndexPatternsService {
    */
   refreshFields = async (indexPattern: IndexPattern) => {
     try {
-      const fields = await this.getFieldsForIndexPattern(indexPattern);
+      const fields = await this.getFieldsForIndexPattern(indexPattern, {
+        ...(indexPattern.dataSourcesJSON) && { dataSourceId: JSON.parse(indexPattern.dataSourcesJSON)[0].id },
+      });
       const scripted = indexPattern.getScriptedFields().map((field) => field.spec);
       indexPattern.fields.replaceAll([...fields, ...scripted]);
     } catch (err) {

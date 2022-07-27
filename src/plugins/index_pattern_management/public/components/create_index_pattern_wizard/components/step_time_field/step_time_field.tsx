@@ -55,6 +55,7 @@ interface StepTimeFieldProps {
   createIndexPattern: (selectedTimeField: string | undefined, indexPatternId: string) => void;
   indexPatternCreationType: IndexPatternCreationConfig;
   selectedTimeField?: string;
+  dataSourceId?: string;
 }
 
 interface StepTimeFieldState {
@@ -124,6 +125,7 @@ export class StepTimeField extends Component<StepTimeFieldProps, StepTimeFieldSt
       this.context.services.data.indexPatterns.getFieldsForWildcard({
         pattern,
         ...getFetchForWildcardOptions(),
+        dataSourceId: this.props.dataSourceId,
       })
     );
     const timeFields = extractTimeFields(fields);
