@@ -18,9 +18,11 @@ setting up your development environment.
 opensearchDashboards.multipleDataSource.enabled: true
 ```
 
-2. To setup path for crypto material, override config/opensearch_dashboards.yml
+2. To configure Keyring, override config/opensearch_dashboards.yml
 
 ```
+credential_management.keyName: "keyName"
+credential_management.keyNamespace: "keyNamespace" 
 credential_management.materialPath: "path/to/your/crypto_material"
 ```
 
