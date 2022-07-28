@@ -60,17 +60,36 @@ export function registerRoutes(http: HttpServiceSetup) {
     },
     async (context, request, response) => {
       if (request.query.dataSourceId) {
-        const openSearchClient = await context.core.opensearchData.getClient(request.query.dataSourceId);
-        const result = await openSearchClient.fieldCaps({
-          index: request.query.pattern,
-          fields: '*',
-          ignore_unavailable: true,
-          // ignoreUnavailable: true,
-          allow_no_indices: true,
-        });
-        const processedResult = processFieldCapsRespons(result.body as any, 
-          Array.isArray(request.query.meta_fields) ? request.query.meta_fields : [request.query.meta_fields]);
-        return response.ok({body: { fields: processedResult}});
+        try {
+          const openSearchClient = await context.core.opensearchData.getClient(request.query.dataSourceId);
+          const result = await openSearchClient.fieldCaps({
+            index: request.query.pattern,
+            fields: '*',
+            ignore_unavailable: true,
+            // ignoreUnavailable: true,
+            allow_no_indices: true,
+          });
+          const processedResult = processFieldCapsRespons(result.body as any, 
+            Array.isArray(request.query.meta_fields) ? request.query.meta_fields : [request.query.meta_fields]);
+          return response.ok({body: { fields: processedResult}});
+        } catch (error) {
+          if (
+            typeof error === 'object' &&
+            !!error?.isBoom &&
+            !!error?.output?.payload &&
+            typeof error?.output?.payload === 'object'
+          ) {
+            const payload = error?.output?.payload;
+            return response.notFound({
+              body: {
+                message: payload.message,
+                attributes: payload,
+              },
+            });
+          } else {
+            return response.notFound();
+          }
+        }
       }
       
       const { callAsCurrentUser } = context.core.opensearch.legacy.client;
