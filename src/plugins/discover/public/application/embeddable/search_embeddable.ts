@@ -211,6 +211,9 @@ export class SearchEmbeddable
 
     const { searchSource } = this.savedSearch;
     const indexPattern = (searchScope.indexPattern = searchSource.getField('index'))!;
+    // if (indexPattern.dataSourcesJSON) {
+    //   searchSource.dataSourceId = JSON.parse(indexPattern.dataSourcesJSON)[0].id;
+    // }
 
     const timeRangeSearchSource = searchSource.create();
     timeRangeSearchSource.setField('filter', () => {

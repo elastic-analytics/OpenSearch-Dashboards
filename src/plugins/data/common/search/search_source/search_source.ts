@@ -288,8 +288,9 @@ export class SearchSource {
        */
       response = await this.legacyFetch(searchRequest, options);
     } else {
-      if (this.dataSourceId) {
-        searchRequest.dataSourceId = this.dataSourceId;
+      const indexPattern = this.getField('index');
+      if (indexPattern?.dataSourcesJSON) {
+        searchRequest.dataSourceId = JSON.parse(indexPattern.dataSourcesJSON)[0].id;
       }
       response = await this.fetchSearch(searchRequest, options);
     }

@@ -977,6 +977,9 @@ function discoverController($element, $route, $scope, $timeout, $window, Promise
       )
       .setField('query', data.query.queryString.getQuery() || null)
       .setField('filter', filterManager.getFilters());
+    // if (indexPattern.dataSourcesJSON) {
+    //   searchSource.dataSourceId = JSON.parse(indexPattern.dataSourcesJSON)[0].id;
+    // }
     return Promise.resolve();
   };
 
