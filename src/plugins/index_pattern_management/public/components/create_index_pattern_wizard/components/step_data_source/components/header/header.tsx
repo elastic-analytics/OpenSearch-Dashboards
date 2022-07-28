@@ -60,7 +60,7 @@ export const Header: React.FC<HeaderProps> = (props: HeaderProps) => {
           savedObjectMetaData={[
             {
               type: 'data-source',
-              getIconForSavedObject: () => 'data-source',
+              getIconForSavedObject: () => 'apps',
               name: i18n.translate(
                 'dataSources.newDataSource.searchSelection.savedObjectType.credential',
                 {

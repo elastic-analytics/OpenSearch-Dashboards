@@ -52,6 +52,7 @@ const CreateDataSourceWizard: React.FunctionComponent<CreateDataSourceWizardProp
     dataSource,
   } = useOpenSearchDashboards<DataSourceManagmentContext>().services;
 
+  
   const type = new URLSearchParams(props.location.search).get('type') || undefined;
   const [dataSourceName, setDataSourceName] = useState('');
   const [toasts, setToasts] = useState<EuiGlobalToastListToast[]>([]);
@@ -76,17 +77,21 @@ const CreateDataSourceWizard: React.FunctionComponent<CreateDataSourceWizardProp
     setSavedDS(gettedSavedDS);
   };
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
+    const {history} = props;
+
     const savedDataSource = savedDS!; // todo
     savedDataSource.credientialsJSON = JSON.stringify(selectedCrediential);
 
     savedDataSource.title = dataSourceName;
     savedDataSource.endpoint = endpoint;
 
-    savedDataSource.save({}).then((res: any) => {
+    await savedDataSource.save({}).then((res: any) => {
       // eslint-disable-next-line no-console
       console.log(res);
     });
+
+    history.push('');
   };
 
   const renderHeader = () => {
@@ -153,7 +158,7 @@ const CreateDataSourceWizard: React.FunctionComponent<CreateDataSourceWizardProp
               savedObjectMetaData={[
                 {
                   type: 'credential',
-                  getIconForSavedObject: () => 'credential',
+                  getIconForSavedObject: () => 'apps', //todo: this is temp as we need UX to design a icon
                   name: i18n.translate(
                     'dataSources.newDataSource.searchSelection.savedObjectType.credential',
                     {
