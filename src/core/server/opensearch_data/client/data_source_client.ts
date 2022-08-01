@@ -123,7 +123,7 @@ export class DataSourceClient implements ICustomDataSourceClient {
      */
     const credential = await this.savedObjectClient.get('credential', credentialId);
     const credentialObj = credential!.attributes as any;
-    const { user_name: username, password: encryptedPassword } = credentialObj.credential_material;
+    const { user_name: username, password: encryptedPassword } = credentialObj.credentialMaterials.credentialMaterialsContent!;
 
     const password = await CryptographySingleton.getInstance().decrypt(
       Buffer.from(encryptedPassword, 'base64')
