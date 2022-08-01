@@ -1,25 +1,18 @@
 import {
   HttpServiceStart,
-  SavedObject,
-  SavedObjectsBaseOptions,
   SavedObjectsBulkCreateObject,
-  SavedObjectsBulkGetObject,
   SavedObjectsBulkResponse,
   SavedObjectsBulkUpdateObject,
   SavedObjectsBulkUpdateOptions,
   SavedObjectsBulkUpdateResponse,
   SavedObjectsClientWrapperFactory,
   SavedObjectsCreateOptions,
-  SavedObjectsFindOptions,
-  SavedObjectsFindResult,
-  SavedObjectsFindResponse,
   SavedObjectsUpdateOptions,
   SavedObjectsUpdateResponse,
 } from 'opensearch-dashboards/server';
 //   import { SavedObjectsErrorHelpers } from '../../../../src/core/server';
 import _ from 'lodash';
-import { encryptionHandler } from '../credential_manager';
-import { CredentialSavedObjectAttributes } from '../../common';
+import { handleEncryption } from '../credential_manager';
 
 export class CredentialSavedObjectsClientWrapper {
   public httpStart?: HttpServiceStart;
@@ -37,7 +30,7 @@ export class CredentialSavedObjectsClientWrapper {
         title: attributes.title,
         description: attributes.description,
         credentialType: attributes.credentialType,
-        credentialMaterials: await encryptionHandler(attributes.credentialMaterials),
+        credentialMaterials: await handleEncryption(attributes.credentialMaterials),
       };
       return await wrapperOptions.client.create(type, encryptedAttributes, options);
     };
@@ -53,7 +46,7 @@ export class CredentialSavedObjectsClientWrapper {
             title: attributes.title,
             description: attributes.description,
             credentialType: attributes.credentialType,
-            credentialMaterials: await encryptionHandler(
+            credentialMaterials: await handleEncryption(
               attributes.credentialMaterials
             ),
           },
@@ -62,23 +55,6 @@ export class CredentialSavedObjectsClientWrapper {
         } as unknown as SavedObjectsBulkCreateObject<T> 
       }));
       return await wrapperOptions.client.bulkCreate(objects, options);
-    };
-
-    const findAndDropCredentialMaterialsContents = async <T = unknown>(
-      options: SavedObjectsFindOptions
-    ): Promise<SavedObjectsFindResponse<T>> => {
-      const findResult = await wrapperOptions.client.find(options);
-      // TODO: Add validation and pagination
-      findResult.saved_objects = findResult.saved_objects.map((object) => {
-        return {
-          type: object.type,
-          id: object.id,
-          attributes: this.dropCredentialMaterialsContents(object),
-        // Unfortunately this throws a typescript error without the casting.  I think it's due to the
-        // convoluted way SavedObjects are created.
-        } as unknown as SavedObjectsFindResult<T>;
-      });
-      return findResult as SavedObjectsFindResponse<T>;
     };
 
     const updateWithCredentialMaterialsContentEncryption = async <T = unknown>(
@@ -92,7 +68,7 @@ export class CredentialSavedObjectsClientWrapper {
         title: attributes.title,
         description: attributes.description,
         credentialType: attributes.credentialType,
-        credentialMaterials: await encryptionHandler(
+        credentialMaterials: await handleEncryption(
           attributes.credentialMaterials
         ),
       };
@@ -111,7 +87,7 @@ export class CredentialSavedObjectsClientWrapper {
             title: attributes.title,
             description: attributes.description,
             credentialType: attributes.credentialType,
-            credentialMaterials: await encryptionHandler(
+            credentialMaterials: await handleEncryption(
               attributes.credentialMaterials
             ),
           },
@@ -129,7 +105,7 @@ export class CredentialSavedObjectsClientWrapper {
       bulkCreate: bulkCreateWithCredentialMaterialsContentEncryption,
       checkConflicts: wrapperOptions.client.checkConflicts,
       delete: wrapperOptions.client.delete,
-      find: findAndDropCredentialMaterialsContents,
+      find: wrapperOptions.client.find,
       bulkGet: wrapperOptions.client.bulkGet,
       get: wrapperOptions.client.get,
       update: updateWithCredentialMaterialsContentEncryption,
@@ -139,16 +115,4 @@ export class CredentialSavedObjectsClientWrapper {
       deleteFromNamespaces: wrapperOptions.client.deleteFromNamespaces,
     };
   };
-
-  private dropCredentialMaterialsContents(object: SavedObject<unknown>): CredentialSavedObjectAttributes {
-    // TODO: Add validation  
-    return {
-      title: object.attributes.title,
-      description: object.attributes.description,
-      credentialType: object.attributes.credentialType,
-      credentialMaterials: {
-        credentialMaterialsType: object.attributes.credentialMaterials?.credentialMaterialsType,
-      }
-    };
-  }
 }
