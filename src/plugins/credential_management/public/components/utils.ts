@@ -10,7 +10,6 @@
  */
 
 import { SavedObjectsClientContract } from 'src/core/public';
-import { Credential } from '../../common';
 import { CredentialsTableItem } from './types';
 
 export async function getCredentials(
@@ -18,9 +17,9 @@ export async function getCredentials(
   defaultIndex: string
 ) {
   return await (savedObjectsClient
-    .find<Credential.ICredential>({
+    .find({
       type: 'credential',
-      fields: ['id', 'title', 'credential_type'],
+      fields: ['id', 'title', 'credentialType'],
       perPage: 10000,
     })
     .then((response) =>
@@ -28,7 +27,7 @@ export async function getCredentials(
         .map((source) => {
           const id = source.id;
           const title = source.get('title');
-          const credentialType = source.get('credential_type');
+          const credentialType = source.get('credentialType');
           return {
             id,
             title,

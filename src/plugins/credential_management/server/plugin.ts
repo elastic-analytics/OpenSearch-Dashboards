@@ -19,10 +19,10 @@ import {
 } from '../../../core/server';
 
 import { CredentialManagementPluginSetup, CredentialManagementPluginStart } from './types';
-import { registerRoutes } from './routes';
 import { credentialSavedObjectType } from './saved_objects';
 import { ConfigSchema } from '../config';
 import { CryptographySingleton } from './crypto';
+import { CredentialSavedObjectsClientWrapper } from './saved_objects';
 
 export class CredentialManagementPlugin
   implements Plugin<CredentialManagementPluginSetup, CredentialManagementPluginStart> {
@@ -30,10 +30,12 @@ export class CredentialManagementPlugin
   private initializerContext: PluginInitializerContext<ConfigSchema>;
 
   private cryptographySingleton?: CryptographySingleton;
+  private credentialSavedObjectsClientWrapper: CredentialSavedObjectsClientWrapper;
 
   constructor(initializerContext: PluginInitializerContext<ConfigSchema>) {
     this.logger = initializerContext.logger.get();
     this.initializerContext = initializerContext;
+    this.credentialSavedObjectsClientWrapper = new CredentialSavedObjectsClientWrapper();
   }
 
   public async setup(core: CoreSetup) {
@@ -50,23 +52,27 @@ export class CredentialManagementPlugin
         keyNamespace,
       } = await this.initializerContext.config.create().pipe(first()).toPromise();
 
-      const router = core.http.createRouter();
-      // Register server side APIs
-      registerRoutes(router);
-      // Register credential saved object type
-      core.savedObjects.registerType(credentialSavedObjectType);
       // Instantiate CryptoCli for encryption / decryption
       this.cryptographySingleton = CryptographySingleton.getInstance(
         materialPath,
         keyName,
         keyNamespace
       );
+
+      // Register credential saved object type
+      core.savedObjects.registerType(credentialSavedObjectType);
+      // Add credential saved objects client wrapper
+      core.savedObjects.addClientWrapper(1, 'credential', this.credentialSavedObjectsClientWrapper.wrapperFactory);
     }
     return {};
   }
 
   public start(core: CoreStart) {
-    return {};
+    this.credentialSavedObjectsClientWrapper.httpStart = core.http;
+
+    return {
+      http: core.http,
+    };
   }
 
   public stop() {}

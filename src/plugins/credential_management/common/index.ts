@@ -9,9 +9,14 @@
  * GitHub history for details.
  */
 
-import * as Credential from './types';
-
 export const PLUGIN_ID = 'credentialManagement';
 export const PLUGIN_NAME = 'Credential Management';
 
-export { Credential };
+export {
+  CredentialSavedObjectAttributes,
+  CredentialMaterials,
+  UserNamePasswordType,
+  AWSIAMType,
+  UserNamePasswordTypedContent,
+  AWSIAMTypedContent,
+} from './types';

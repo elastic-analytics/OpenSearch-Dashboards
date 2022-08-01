@@ -9,23 +9,29 @@
  * GitHub history for details.
  */
 
-// TODO: refactor the credential in heritance:
-export interface ICredential {
-  readonly credential_name: string;
-  readonly credential_type: CredentialType;
-  readonly credential_material: IUserNamePasswordCredentialMaterial | IAWSIAMCredentialMaterial;
+import { SavedObjectAttributes } from '../../../../src/core/types';
+
+export type UserNamePasswordType = 'username_password_credential';
+export type AWSIAMType = 'aws_iam_credential';
+
+export interface CredentialSavedObjectAttributes extends SavedObjectAttributes {
+  title: string;
+  credentialType: string;
+  credentialMaterials: CredentialMaterials;
+  description?: string;
 }
 
-export type CredentialType = USERNAME_PASSWORD_TYPE | AWS_IAM_TYPE;
-export type USERNAME_PASSWORD_TYPE = 'username_password_credential';
-export type AWS_IAM_TYPE = 'aws_iam_credential';
-
-export interface IUserNamePasswordCredentialMaterial {
-  readonly user_name: string;
-  readonly password: string;
+export interface CredentialMaterials extends SavedObjectAttributes {
+  credentialMaterialsType: UserNamePasswordType | AWSIAMType;
+  credentialMaterialsContent?: UserNamePasswordTypedContent | AWSIAMTypedContent;
 }
 
-// TODO: Update AWS IAM credential material model
-export interface IAWSIAMCredentialMaterial {
-  readonly encrypted_aws_iam_credential: string;
+export interface UserNamePasswordTypedContent extends SavedObjectAttributes {
+  userName: string;
+  password: string;
+}
+
+export interface AWSIAMTypedContent extends SavedObjectAttributes {
+  accessKeyID: string;
+  secretAccessKey: string;
 }

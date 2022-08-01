@@ -13,40 +13,31 @@ import { SavedObjectsType } from 'opensearch-dashboards/server';
 
 export const credentialSavedObjectType: SavedObjectsType = {
   name: 'credential',
-  namespaceType: 'agnostic',
   hidden: false,
+  namespaceType: 'single',
   management: {
     defaultSearchField: 'title',
     importableAndExportable: true,
     getTitle(obj) {
       return obj.attributes.title;
     },
-    getCredentialType(obj) {
-      return obj.attributes.credential_type;
-    },
-    getUserName(obj) {
-      return obj.attributes.user_name;
-    },
     getEditUrl(obj) {
       return `/management/opensearch-dashboards/credentials/${encodeURIComponent(obj.id)}`;
     },
     getInAppUrl(obj) {
       return {
-        path: `/app/management/opensearch-dashboards/credentials/${encodeURIComponent(obj.id)}`,
-        uiCapabilitiesPath: 'management.opensearchDashboards.credentials',
+        path: `/management/opensearch-dashboards/credentials/${encodeURIComponent(obj.id)}`,
+        uiCapabilitiesPath: 'credential.show',
       };
     },
   },
   mappings: {
     dynamic: false,
     properties: {
-      title: {
-        type: 'text',
-      },
-      credential_type: {
-        type: 'keyword',
-      },
-      credential_material: { type: 'object' },
+      title: { type: 'text' },
+      credentialType: { type: 'keyword' },
+      credentialMaterials: { type: 'object' },
+      description: { type: 'text' },
     },
   },
   migrations: {},

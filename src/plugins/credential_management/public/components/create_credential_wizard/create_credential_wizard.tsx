@@ -31,7 +31,7 @@ import { getCreateBreadcrumbs } from '../breadcrumbs';
 import { CredentialManagmentContextValue } from '../../types';
 import { Header } from './components/header';
 import { context as contextType } from '../../../../opensearch_dashboards_react/public';
-import { Credential } from '../../../common';
+import { UserNamePasswordType } from '../../../common';
 
 interface CreateCredentialWizardState {
   credentialName: string;
@@ -43,7 +43,7 @@ interface CreateCredentialWizardState {
   docLinks: DocLinksStart;
 }
 
-const USERNAME_PASSWORD_TYPE: Credential.USERNAME_PASSWORD_TYPE = 'username_password_credential';
+const USERNAME_PASSWORD_TYPE: UserNamePasswordType = 'username_password_credential';
 
 export class CreateCredentialWizard extends React.Component<
   RouteComponentProps,
@@ -81,6 +81,8 @@ export class CreateCredentialWizard extends React.Component<
   // TODO: Add conditional rendering to select credential types
   renderContent() {
     const header = this.renderHeader();
+
+    const { savedObjects } = this.context.services;
 
     return (
       <EuiPageContent>
@@ -188,19 +190,20 @@ export class CreateCredentialWizard extends React.Component<
   }
 
   createCredential = async () => {
-    const { http } = this.context.services;
+    const { savedObjects } = this.context.services;
     try {
-      // TODO: Refactor it by registering client wrapper factory
       // TODO: Add rendering spanner
-      await http.post('/api/credential_management/create', {
-        body: JSON.stringify({
-          credential_name: this.state.credentialName,
-          credential_type: this.state.credentialType,
-          username_password_credential_materials: {
-            user_name: this.state.userName,
+      await savedObjects.client.create('credential', {
+        title: this.state.credentialName,
+        // TODO: Refactor this state with UX input
+        credentialType: this.state.credentialType,
+        credentialMaterials: {
+          credentialMaterialsType: this.state.credentialType,
+          credentialMaterialsContent: {
+            userName: this.state.userName,
             password: this.state.password,
           },
-        }),
+        },
       });
       this.props.history.push('');
     } catch (e) {

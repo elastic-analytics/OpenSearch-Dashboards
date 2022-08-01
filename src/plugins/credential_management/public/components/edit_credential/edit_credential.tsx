@@ -32,7 +32,7 @@ import { CredentialManagmentContextValue } from '../../types';
 // TODO: Add Header
 // import { Header } from './components/header';
 import { context as contextType } from '../../../../opensearch_dashboards_react/public';
-import { Credential } from '../../../common';
+import { UserNamePasswordType } from '../../../common';
 import { CredentialEditPageItem } from '../types';
 
 interface EditCredentialState {
@@ -48,7 +48,7 @@ interface EditCredentialState {
 export interface EditCredentialProps extends RouteComponentProps {
   credential: CredentialEditPageItem;
 }
-const USERNAME_PASSWORD_TYPE: Credential.USERNAME_PASSWORD_TYPE = 'username_password_credential';
+const USERNAME_PASSWORD_TYPE: UserNamePasswordType = 'username_password_credential';
 
 export class EditCredentialComponent extends React.Component<
   EditCredentialProps,
@@ -64,7 +64,7 @@ export class EditCredentialComponent extends React.Component<
     this.state = {
       credentialName: props.credential.title,
       credentialType: props.credential.credentialType,
-      userName: props.credential.userName,
+      userName: '',
       password: '',
       dual: true,
       toasts: [],
@@ -179,19 +179,20 @@ export class EditCredentialComponent extends React.Component<
   }
 
   updateCredential = async () => {
-    const { http } = this.context.services;
+    const { savedObjects } = this.context.services;
     try {
-      // TODO: Refactor it by registering client wrapper factory
       // TODO: Add rendering spanner
-      await http.put(`/api/credential_management/${this.props.credential.id}`, {
-        body: JSON.stringify({
-          credential_name: this.state.credentialName,
-          credential_type: this.state.credentialType,
-          username_password_credential_materials: {
-            user_name: this.state.userName,
+      await savedObjects.client.update('credential', this.props.credential.id, {
+        title: this.state.credentialName,
+        // TODO: Refactor this state with UX input
+        credentialType: this.state.credentialType,
+        credentialMaterials: {
+          credentialMaterialsType: this.state.credentialType,
+          credentialMaterialsContent: {
+            userName: this.state.userName,
             password: this.state.password,
           },
-        }),
+        },
       });
       this.props.history.push('');
     } catch (e) {
