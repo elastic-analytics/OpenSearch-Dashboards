@@ -21,7 +21,7 @@ const USERNAME_PASSWORD_TYPE: UserNamePasswordType = 'username_password_credenti
 const AWS_IAM_TYPE: AWSIAMType = 'aws_iam_credential';
 
 // TODO: Refactor handler with service lifecycle, add logger, etc
-export async function encryptionHandler(credentialMaterials: CredentialMaterials) {
+export async function handleEncryption(credentialMaterials: CredentialMaterials) {
   const cryptoCli = CryptographySingleton.getInstance();
 
   switch (credentialMaterials.credentialMaterialsType) {

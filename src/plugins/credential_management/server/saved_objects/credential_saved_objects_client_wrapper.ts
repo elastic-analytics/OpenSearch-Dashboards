@@ -80,39 +80,6 @@ export class CredentialSavedObjectsClientWrapper {
       });
       return findResult as SavedObjectsFindResponse<T>;
     };
-    
-    const bulkGetAndDropCredentialMaterialsContents = async <T = unknown>(
-      objects: SavedObjectsBulkGetObject[] = [],
-      options: SavedObjectsBaseOptions = {}
-    ): Promise<SavedObjectsBulkResponse<T>> => {
-      const bulkGetResult = await wrapperOptions.client.bulkGet(objects, options);
-      // TODO: Add validation
-      bulkGetResult.saved_objects = bulkGetResult.saved_objects.map((object) => {
-        return {
-          type: object.type,
-          id: object.id,
-          attributes: this.dropCredentialMaterialsContents(object),
-        // Unfortunately this throws a typescript error without the casting.  I think it's due to the
-        // convoluted way SavedObjects are created.
-        } as unknown as SavedObject<T>;
-      });
-  
-      return bulkGetResult as SavedObjectsBulkResponse<T>;
-    };
-
-    const getAndDropCredentialMaterialsContent = async <T = unknown>(
-      type: string,
-      id: string,
-      options: SavedObjectsBaseOptions = {}
-    ): Promise<SavedObject<T>> => {
-      const object = await wrapperOptions.client.get<T>(type, id, options);
-      // TODO: Add validation
-      return {
-        type: object.type,
-        id: object.id,
-        attributes: this.dropCredentialMaterialsContents(object),
-      }
-    };
 
     const updateWithCredentialMaterialsContentEncryption = async <T = unknown>(
       type: string,
@@ -163,8 +130,8 @@ export class CredentialSavedObjectsClientWrapper {
       checkConflicts: wrapperOptions.client.checkConflicts,
       delete: wrapperOptions.client.delete,
       find: findAndDropCredentialMaterialsContents,
-      bulkGet: bulkGetAndDropCredentialMaterialsContents,
-      get: getAndDropCredentialMaterialsContent,
+      bulkGet: wrapperOptions.client.bulkGet,
+      get: wrapperOptions.client.get,
       update: updateWithCredentialMaterialsContentEncryption,
       bulkUpdate: bulkUpdateWithCredentialMaterialsContentEncryption,
       errors: wrapperOptions.client.errors,

@@ -9,4 +9,4 @@
  * GitHub history for details.
  */
 
-export { encryptionHandler } from './credential_manager';
+export { handleEncryption } from './credential_manager';
