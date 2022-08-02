@@ -8,15 +8,15 @@
  * Any modifications Copyright OpenSearch Contributors. See
  * GitHub history for details.
  */
+import { first } from 'rxjs/operators';
 
 import {
+  PluginInitializerContext,
   CoreSetup,
   CoreStart,
   Plugin,
   Logger,
 } from '../../../core/server';
-
-import { PluginInitializerContext } from 'src/core/public';
 
 import { CredentialManagementPluginSetup, CredentialManagementPluginStart } from './types';
 import { registerRoutes } from './routes';
@@ -26,22 +26,32 @@ import { CryptoCli } from './crypto';
 
 export class CredentialManagementPlugin
   implements Plugin<CredentialManagementPluginSetup, CredentialManagementPluginStart> {
-  private cryptoCli: CryptoCli;
+  private readonly logger: Logger;
+  private initializerContext: PluginInitializerContext<ConfigSchema>;
+
+  private cryptoCli?: CryptoCli;
 
   constructor(initializerContext: PluginInitializerContext<ConfigSchema>) {
-    const { materialPath } = initializerContext.config.get<ConfigSchema>();
-    this.cryptoCli = CryptoCli.getInstance(materialPath);
+    this.logger = initializerContext.logger.get();
+    this.initializerContext = initializerContext;
   }
 
-  public setup(core: CoreSetup) {
-    const router = core.http.createRouter();
+  public async setup(core: CoreSetup) {
+    this.logger.debug('credential_management: Setup');
+    const { enabled, materialPath } = await this.initializerContext.config
+      .create()
+      .pipe(first())
+      .toPromise();
 
-    // Register server side APIs
-    registerRoutes(router);
-
-    // Register credential saved object type
-    core.savedObjects.registerType(credentialSavedObjectType);
-
+    if (enabled) {
+      const router = core.http.createRouter();
+      // Register server side APIs
+      registerRoutes(router);
+      // Register credential saved object type
+      core.savedObjects.registerType(credentialSavedObjectType);
+      // Instantiate CryptoCli for encryption / decryption
+      this.cryptoCli = CryptoCli.getInstance(materialPath);
+    }
     return {};
   }
 

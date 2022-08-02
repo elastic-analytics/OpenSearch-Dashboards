@@ -95,14 +95,14 @@ export class CreateCredentialWizard extends React.Component<
           >
             <EuiFormRow label="Credential Name">
               <EuiFieldText
-                placeholder="Your Credential Name"
+                placeholder="Your Credential Names"
                 value={this.state.credentialName || ''}
                 onChange={(e) => this.setState({ credentialName: e.target.value })}
               />
             </EuiFormRow>
           </EuiDescribedFormGroup>
           <EuiDescribedFormGroup
-            title={<h3>Credential Type</h3>}
+            title={<h3>Credential Types</h3>}
             description={
               <div>
                 <p>

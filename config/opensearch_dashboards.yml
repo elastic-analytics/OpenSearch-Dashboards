@@ -186,5 +186,7 @@
 
 # Set the value of this setting to true to enable credential management for managing 
 # the credentials of OpenSearch cluster.
-# credentialManagement.enabled: true
-# credentialManagement.materialPath: "src/plugins/credential_management/server/crypto/crypto_material"
+# It's enabled now for for playground env CD
+# TODO: Disable it for release
+credential_management.enabled: true
+# credential_management.materialPath: "path/to/your/crypto_material"

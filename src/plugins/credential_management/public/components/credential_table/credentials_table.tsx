@@ -206,7 +206,7 @@ export const CredentialsTable = ({ canSave, history }: Props) => {
           </EuiText>
         </EuiFlexItem>
         <EuiFlexItem grow={false}>{createButton}</EuiFlexItem>
-        {deleteButton}
+        <EuiFlexItem grow={false}>{deleteButton}</EuiFlexItem>
       </EuiFlexGroup>
       <EuiSpacer />
       <EuiInMemoryTable
