@@ -57,3 +57,6 @@ export async function deleteCredentials(
     await savedObjectsClient.delete('credential', credential.id);
   }
 }
+
+
+

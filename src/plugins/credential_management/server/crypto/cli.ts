@@ -17,9 +17,9 @@ import {
 } from '@aws-crypto/client-node';
 
 import { randomBytes } from 'crypto';
-import { readFileSync, writeFile } from 'fs';
+import { readFileSync, writeFileSync } from 'fs';
 
-const defaultPath = "src/plugins/credential_management/server/crypto/crypto_material";
+const defaultPath = 'data/crypto_material';
 
 export class CryptoCli {
   private static _instance: CryptoCli;
@@ -31,13 +31,18 @@ export class CryptoCli {
 
   private constructor(path: string) {
     const wrappingSuite = RawAesWrappingSuiteIdentifier.AES256_GCM_IV12_TAG16_NO_PADDING;
-    // TODO: Move config to opensearch_dashboards.yam and load config during bootstrap
-    // TODO: Generate materials by default during bootstrap
 
-    // TODO: Add path validation with default calling generateCryptoMaterials
-    const cryptoMaterials = JSON.parse(
-      readFileSync(path, 'utf8')
-    );
+    let cryptoMaterials;
+    try {
+      cryptoMaterials = JSON.parse(readFileSync(path, 'utf8'));
+    } catch (err) {
+      // Handle a file-not-found error
+      if (err.code === 'ENOENT') {
+        cryptoMaterials = JSON.parse(generateCryptoMaterials(path));
+      } else {
+        throw err;
+      }
+    }
 
     const input = {
       keyName: cryptoMaterials.keyName,
@@ -64,8 +69,7 @@ export class CryptoCli {
     return result.plaintext.toString();
   }
 
-  // TODO: Append CryptoCli.getInstance into plugin lifecycle
-  public static getInstance(path=defaultPath): CryptoCli {
+  public static getInstance(path = defaultPath): CryptoCli {
     if (!CryptoCli._instance) {
       CryptoCli._instance = new CryptoCli(path);
     }
@@ -74,17 +78,21 @@ export class CryptoCli {
   }
 }
 
-const generateCryptoMaterials = function (keyName: string, keyNamespace: string, path=defaultPath) {
+const generateCryptoMaterials = function (
+  path = defaultPath,
+  keyName = 'keyName',
+  keyNamespace = 'keyNamespace'
+) {
   const cryptoMaterials = {
     keyName,
     keyNamespace,
     unencryptedMasterKey: randomBytes(32),
   };
-
-  writeFile(path, JSON.stringify(cryptoMaterials), function (err) {
-    if (err) throw err;
-  });
+  const input = JSON.stringify(cryptoMaterials);
+  writeFileSync(path, input);
   console.log('Crypto materials generated!');
+
+  return input;
 };
 
 export { generateCryptoMaterials };

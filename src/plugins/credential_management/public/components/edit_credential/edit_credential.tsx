@@ -21,6 +21,10 @@ import {
   EuiFieldText,
   EuiSelect,
   EuiLink,
+  EuiFlexItem,
+  EuiToolTip,
+  EuiButtonIcon,
+  EuiConfirmModal,
   // EuiFilePicker,
   EuiButton,
   EuiPageContent,
@@ -34,6 +38,7 @@ import { CredentialManagmentContextValue } from '../../types';
 import { context as contextType } from '../../../../opensearch_dashboards_react/public';
 import { Credential } from '../../../common';
 import { CredentialEditPageItem } from '../types';
+import { deleteCredentials } from '../utils';
 
 interface EditCredentialState {
   credentialName: string;
@@ -41,6 +46,7 @@ interface EditCredentialState {
   userName: string;
   password: string;
   dual: boolean;
+  isVisible: boolean;
   toasts: EuiGlobalToastListToast[];
   docLinks: DocLinksStart;
 }
@@ -62,6 +68,7 @@ export class EditCredentialComponent extends React.Component<
     context.services.setBreadcrumbs(getCreateBreadcrumbs());
 
     this.state = {
+      isVisible: false,
       credentialName: props.credential.title,
       credentialType: props.credential.credentialType,
       userName: props.credential.userName,
@@ -76,6 +83,24 @@ export class EditCredentialComponent extends React.Component<
   renderContent() {
     return (
       <EuiPageContent>
+        <div style={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "end"
+        }}>
+          <EuiFlexItem>
+            <EuiToolTip content="Remove this credential">
+              <EuiButtonIcon
+                color="danger"
+                onClick={this.removeCredential}
+                iconType="trash"
+                aria-label={"Remove this credential"}
+              // data-test-subj="deleteIndexPatternButton"
+              />
+            </EuiToolTip>
+          </EuiFlexItem>
+        </div>
+
         <EuiHorizontalRule />
         <EuiForm component="form">
           <EuiDescribedFormGroup
@@ -113,7 +138,7 @@ export class EditCredentialComponent extends React.Component<
                   <li>
                     For <b>aws_iam_credential</b> type: this type can only be used for{' '}
                     aws iam credential, with aws_access_key_id,{' '}
-                    aws_secret_access_key, and region (optional) 
+                    aws_secret_access_key, and region (optional)
                   </li>
                 </ul>
               </div>
@@ -150,6 +175,7 @@ export class EditCredentialComponent extends React.Component<
           <EuiButton fill onClick={this.updateCredential}>
             Update
           </EuiButton>
+
         </EuiForm>
       </EuiPageContent>
     );
@@ -163,7 +189,6 @@ export class EditCredentialComponent extends React.Component<
 
   render() {
     const content = this.renderContent();
-
     return (
       <>
         {content}
@@ -172,8 +197,29 @@ export class EditCredentialComponent extends React.Component<
           dismissToast={({ id }) => {
             this.removeToast(id);
           }}
-          toastLifeTimeMs={6000}
-        />
+          toastLifeTimeMs={6000}/>
+        {
+          this.state.isVisible ?
+            <EuiConfirmModal
+              title="Delete credential permanently?"
+              onCancel={() => { this.setState({ isVisible: false }) }}
+              onConfirm={async () => {
+                const {savedObjects} = this.context.services;
+                try {
+                  await deleteCredentials(savedObjects.client, [this.props.credential]);
+                  this.props.history.push('');
+                } catch (e) {
+                  console.log(e);
+                }
+              }}
+              cancelButtonText="Cancel"
+              confirmButtonText="Delete"
+              defaultFocusedButton="confirm">
+              <p>This will also delete their credential materials. All data sources using this credential will be invalid for access, and they must choose new credentials. </p>
+              <p>To confirm deletion, enter delete in the text input field.</p>
+              <p>Note: this action cannot be redo!</p>
+            </EuiConfirmModal> : null
+        }
       </>
     );
   }
@@ -199,6 +245,14 @@ export class EditCredentialComponent extends React.Component<
       console.log(e);
     }
   };
+
+  //Remove saved credential detailed page
+  removeCredential = async () => {
+    this.setState({ isVisible: true })
+  }
+
+
+
 }
 
 // TODO: Add router
