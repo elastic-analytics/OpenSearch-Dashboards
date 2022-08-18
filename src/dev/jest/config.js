@@ -101,7 +101,4 @@ export default {
     '<rootDir>/node_modules/enzyme-to-json/serializer',
   ],
   reporters: ['default', '<rootDir>/src/dev/jest/junit_reporter.js'],
-  globals: {
-    Uint8Array: Uint8Array,
-  },
 };
