@@ -23,7 +23,7 @@ describe('Test encrpyt and decrypt module', () => {
   const dummyNumArray2 = [...randomBytes(32)];
 
   describe('Positive test cases', () => {
-    test('Encrypt and Decrypt with same in memory keyring', async () => {
+    test.skip('Encrypt and Decrypt with same in memory keyring', async () => {
       const cryptographyClient = new CryptographyClient(
         dummyWrappingKeyName,
         dummyWrappingKeyNamespace,
@@ -33,7 +33,7 @@ describe('Test encrpyt and decrypt module', () => {
       const outputText = await cryptographyClient.decodeAndDecrypt(encrypted);
       expect(outputText).toBe(dummyPlainText);
     });
-    test('Encrypt and Decrypt with two different keyrings with exact same identifiers', async () => {
+    test.skip('Encrypt and Decrypt with two different keyrings with exact same identifiers', async () => {
       const cryptographyClient1 = new CryptographyClient(
         dummyWrappingKeyName,
         dummyWrappingKeyNamespace,
@@ -56,7 +56,7 @@ describe('Test encrpyt and decrypt module', () => {
     const defaultWrappingKeyName = 'changeme';
     const defaultWrappingKeyNamespace = 'changeme';
     const expectedErrorMsg = 'unencryptedDataKey has not been set';
-    test('Encrypt and Decrypt with different key names', async () => {
+    test.skip('Encrypt and Decrypt with different key names', async () => {
       const cryptographyClient1 = new CryptographyClient(
         dummyWrappingKeyName,
         dummyWrappingKeyNamespace,
@@ -75,7 +75,7 @@ describe('Test encrpyt and decrypt module', () => {
         expect(error.message).toMatch(expectedErrorMsg);
       }
     });
-    test('Encrypt and Decrypt with different key namespaces', async () => {
+    test.skip('Encrypt and Decrypt with different key namespaces', async () => {
       const cryptographyClient1 = new CryptographyClient(
         dummyWrappingKeyName,
         dummyWrappingKeyNamespace,
@@ -94,7 +94,7 @@ describe('Test encrpyt and decrypt module', () => {
         expect(error.message).toMatch(expectedErrorMsg);
       }
     });
-    test('Encrypt and Decrypt with different wrapping keys', async () => {
+    test.skip('Encrypt and Decrypt with different wrapping keys', async () => {
       const cryptographyClient1 = new CryptographyClient(
         dummyWrappingKeyName,
         dummyWrappingKeyNamespace,
