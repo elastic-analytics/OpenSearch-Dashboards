@@ -8,8 +8,8 @@ import './_index.scss';
 import React, { Component } from 'react';
 import ReactDOM from 'react-dom';
 import { AppMountParameters, CoreStart } from '../../../../../core/public';
-import { LoginPage } from './login-page';
 import { ClientConfigType } from '../../types';
+import { LoginPage } from './login-page';
 
 export function renderApp(
   coreStart: CoreStart,

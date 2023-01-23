@@ -5,7 +5,7 @@
 
 import { HttpStart } from 'opensearch-dashboards/public';
 import { API_AUTH_LOGOUT } from '../../common';
-import { httpPost } from './request-utils';
+import { httpPost } from './request_utils';
 
 export async function validateCurrentPassword(
   http: HttpStart,

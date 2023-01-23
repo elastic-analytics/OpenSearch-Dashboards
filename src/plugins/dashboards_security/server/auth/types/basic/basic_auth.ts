@@ -2,7 +2,7 @@
  * Copyright OpenSearch Contributors
  * SPDX-License-Identifier: Apache-2.0
  */
-
+import { OpenSearchDashboardsResponse } from 'opensearch-dashboards/server/http/router';
 import {
   CoreSetup,
   SessionStorageFactory,
@@ -12,7 +12,6 @@ import {
   LifecycleResponseFactory,
   AuthToolkit,
 } from 'opensearch-dashboards/server';
-import { OpenSearchDashboardsResponse } from 'opensearch-dashboards/server/http/router';
 import { SecurityPluginConfigType } from '../../..';
 import { SecuritySessionCookie } from '../../../session/security_cookie';
 import { BasicAuthRoutes } from './routes';
