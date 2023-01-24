@@ -104,6 +104,7 @@ export interface SavedObjectsRepositoryOptions {
   serializer: SavedObjectsSerializer;
   migrator: IOpenSearchDashboardsMigrator;
   allowedTypes: string[];
+  postgresClient: any;
 }
 
 /**
@@ -143,6 +144,7 @@ export class SavedObjectsRepository {
   private _registry: SavedObjectTypeRegistry;
   private _allowedTypes: string[];
   private readonly client: RepositoryOpenSearchClient;
+  private readonly postgresClient: any;
   private _serializer: SavedObjectsSerializer;
 
   /**
@@ -158,6 +160,7 @@ export class SavedObjectsRepository {
     typeRegistry: SavedObjectTypeRegistry,
     indexName: string,
     client: OpenSearchClient,
+    postgresClient: any,
     includedHiddenTypes: string[] = [],
     injectedConstructor: any = SavedObjectsRepository
   ): ISavedObjectsRepository {
@@ -183,6 +186,7 @@ export class SavedObjectsRepository {
       serializer,
       allowedTypes,
       client,
+      postgresClient,
     });
   }
 
@@ -195,6 +199,7 @@ export class SavedObjectsRepository {
       serializer,
       migrator,
       allowedTypes = [],
+      postgresClient,
     } = options;
 
     // It's important that we migrate documents / mark them as up-to-date
@@ -214,6 +219,7 @@ export class SavedObjectsRepository {
     }
     this._allowedTypes = allowedTypes;
     this._serializer = serializer;
+    this.postgresClient = postgresClient;
   }
 
   /**
@@ -246,6 +252,7 @@ export class SavedObjectsRepository {
     } = options;
     const namespace = normalizeNamespace(options.namespace);
 
+    // console.log('Inside create : Persists an object');
     if (initialNamespaces) {
       if (!this._registry.isMultiNamespace(type)) {
         throw SavedObjectsErrorHelpers.createBadRequestError(
@@ -263,6 +270,7 @@ export class SavedObjectsRepository {
     }
 
     const time = this._getCurrentTime();
+    // console.log('time', time);
     let savedObjectNamespace;
     let savedObjectNamespaces: string[] | undefined;
 
@@ -305,6 +313,21 @@ export class SavedObjectsRepository {
       id && overwrite
         ? await this.client.index(requestParams)
         : await this.client.create(requestParams);
+
+    // console.log('coming here atleast');
+
+    await this.postgresClient
+      .query(
+        `INSERT INTO kibana(id, body, type, updated_at) VALUES('${
+          requestParams.id
+        }', json('${JSON.stringify(requestParams.body)}'), '${type}', '${time}')`
+      )
+      .then((res: any) => {
+        // console.log('Saved object inserted in kibana table successfully.');
+      })
+      .catch((error: any) => {
+        throw new Error(error);
+      });
 
     return this._rawToSavedObject<T>({
       ...raw,

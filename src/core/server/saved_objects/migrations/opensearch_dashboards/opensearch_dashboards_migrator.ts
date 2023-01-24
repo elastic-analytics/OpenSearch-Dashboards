@@ -191,24 +191,14 @@ export class OpenSearchDashboardsMigrator {
       });
     });
 
-    await this.postgresClient.connect((err: any) => {
-      if (err) {
-        this.log.info('Database connection failed: ' + err.stack);
-        return;
-      }
-      this.log.info('Connected to database.');
-      this.postgresClient
-        .query('CREATE TABLE IF NOT EXISTS kibana (id TEXT, body JSON, type text, updated_at TEXT)')
-        .then((res: any) => {
-          this.log.info('Table is successfully created');
-        })
-        .catch((error: any) => {
-          this.log.info(error);
-        })
-        .finally(() => {
-          this.postgresClient.end();
-        });
-    });
+    await this.postgresClient
+      .query('CREATE TABLE IF NOT EXISTS kibana (id TEXT, body JSON, type text, updated_at TEXT)')
+      .then((res: any) => {
+        this.log.info('Table is successfully created');
+      })
+      .catch((error: any) => {
+        this.log.info(error);
+      });
     return Promise.all(migrators.map((migrator) => migrator.migrate()));
   }
 
