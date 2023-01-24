@@ -54,6 +54,7 @@ export interface OpenSearchDashboardsMigratorOptions {
   opensearchDashboardsConfig: OpenSearchDashboardsConfigType;
   opensearchDashboardsVersion: string;
   logger: Logger;
+  postgresClient: any;
 }
 
 export type IOpenSearchDashboardsMigrator = Pick<
@@ -83,6 +84,7 @@ export class OpenSearchDashboardsMigrator {
     status: 'waiting',
   });
   private readonly activeMappings: IndexMapping;
+  private readonly postgresClient: any;
 
   /**
    * Creates an instance of OpenSearchDashboardsMigrator.
@@ -94,6 +96,7 @@ export class OpenSearchDashboardsMigrator {
     savedObjectsConfig,
     opensearchDashboardsVersion,
     logger,
+    postgresClient,
   }: OpenSearchDashboardsMigratorOptions) {
     this.client = client;
     this.opensearchDashboardsConfig = opensearchDashboardsConfig;
@@ -110,6 +113,7 @@ export class OpenSearchDashboardsMigrator {
     // Building the active mappings (and associated md5sums) is an expensive
     // operation so we cache the result
     this.activeMappings = buildActiveMappings(this.mappingProperties);
+    this.postgresClient = postgresClient;
   }
 
   /**
@@ -187,21 +191,13 @@ export class OpenSearchDashboardsMigrator {
       });
     });
 
-    // Connect to AWS Postrage RDS
-
-    // eslint-disable-next-line @typescript-eslint/no-var-requires
-    const pg = require('pg');
-    const connUrl = 'postgres://{USERNAME}:{PASSWORD}@{HOSTNAME}:{PORT}/{DATABASE}';
-    const connection = new pg.Client(connUrl);
-
-    this.log.info('before connect');
-    await connection.connect((err: any) => {
+    await this.postgresClient.connect((err: any) => {
       if (err) {
         this.log.info('Database connection failed: ' + err.stack);
         return;
       }
       this.log.info('Connected to database.');
-      connection
+      this.postgresClient
         .query('CREATE TABLE IF NOT EXISTS kibana (id TEXT, body JSON, type text, updated_at TEXT)')
         .then((res: any) => {
           this.log.info('Table is successfully created');
@@ -210,7 +206,7 @@ export class OpenSearchDashboardsMigrator {
           this.log.info(error);
         })
         .finally(() => {
-          connection.end();
+          this.postgresClient.end();
         });
     });
     return Promise.all(migrators.map((migrator) => migrator.migrate()));
