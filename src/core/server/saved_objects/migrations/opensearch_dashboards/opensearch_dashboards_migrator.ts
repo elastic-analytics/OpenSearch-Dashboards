@@ -156,14 +156,17 @@ export class OpenSearchDashboardsMigrator {
     return this.status$.asObservable();
   }
 
-  private runMigrationsInternal() {
+  private async runMigrationsInternal() {
     const opensearchDashboardsIndexName = this.opensearchDashboardsConfig.index;
+    // this.log.info(`OpenSearch Dashboard Index Name ${opensearchDashboardsIndexName}`);
+    // this.log.info(`Here is the index map ${JSON.stringify(this.mappingProperties, null, 4)}`);
+    // this.log.info(`Type Registry ${JSON.stringify(this.typeRegistry, null, 4)}`);
     const indexMap = createIndexMap({
       opensearchDashboardsIndexName,
       indexMap: this.mappingProperties,
       registry: this.typeRegistry,
     });
-
+    // this.log.info(`Total config map is ${JSON.stringify(indexMap, null, 4)}`);
     const migrators = Object.keys(indexMap).map((index) => {
       return new IndexMigrator({
         batchSize: this.savedObjectsConfig.batchSize,
@@ -184,6 +187,32 @@ export class OpenSearchDashboardsMigrator {
       });
     });
 
+    // Connect to AWS Postrage RDS
+
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const pg = require('pg');
+    const connUrl = 'postgres://{USERNAME}:{PASSWORD}@{HOSTNAME}:{PORT}/{DATABASE}';
+    const connection = new pg.Client(connUrl);
+
+    this.log.info('before connect');
+    await connection.connect((err: any) => {
+      if (err) {
+        this.log.info('Database connection failed: ' + err.stack);
+        return;
+      }
+      this.log.info('Connected to database.');
+      connection
+        .query('CREATE TABLE IF NOT EXISTS kibana (id TEXT, body JSON, type text, updated_at TEXT)')
+        .then((res: any) => {
+          this.log.info('Table is successfully created');
+        })
+        .catch((error: any) => {
+          this.log.info(error);
+        })
+        .finally(() => {
+          connection.end();
+        });
+    });
     return Promise.all(migrators.map((migrator) => migrator.migrate()));
   }
 

@@ -218,7 +218,8 @@
     "type-detect": "^4.0.8",
     "uuid": "3.3.2",
     "whatwg-fetch": "^3.0.0",
-    "yauzl": "^2.10.0"
+    "yauzl": "^2.10.0",
+    "pg": "latest"
   },
   "devDependencies": {
     "@babel/core": "^7.16.5",
