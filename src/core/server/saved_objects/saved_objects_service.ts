@@ -373,6 +373,7 @@ export class SavedObjectsService
     const pg = require('pg');
     const connUrl = 'postgres://{USERNAME}:{PASSWORD}@{HOSTNAME}:{PORT}/{DATABASE}';
     const postgresClient = new pg.Client(connUrl);
+    postgresClient.connect();
 
     const migrator = this.createMigrator(
       opensearchDashboardsConfig,
@@ -435,6 +436,7 @@ export class SavedObjectsService
         this.typeRegistry,
         opensearchDashboardsConfig.index,
         opensearchClient,
+        postgresClient,
         includedHiddenTypes
       );
     };
