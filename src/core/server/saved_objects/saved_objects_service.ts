@@ -360,6 +360,7 @@ export class SavedObjectsService
     }
 
     this.logger.debug('Starting SavedObjects service');
+    this.logger.info(`Config is ${JSON.stringify(this.config, null, 4)}`);
 
     const opensearchDashboardsConfig = await this.coreContext.configService
       .atPath<OpenSearchDashboardsConfigType>('opensearchDashboards')
@@ -367,10 +368,17 @@ export class SavedObjectsService
       .toPromise();
     const client = opensearch.client;
 
+    // Initialize postgres client.
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const pg = require('pg');
+    const connUrl = 'postgres://{USERNAME}:{PASSWORD}@{HOSTNAME}:{PORT}/{DATABASE}';
+    const postgresClient = new pg.Client(connUrl);
+
     const migrator = this.createMigrator(
       opensearchDashboardsConfig,
       this.config.migration,
       opensearch.client,
+      postgresClient,
       migrationsRetryDelay
     );
 
@@ -470,6 +478,7 @@ export class SavedObjectsService
     opensearchDashboardsConfig: OpenSearchDashboardsConfigType,
     savedObjectsConfig: SavedObjectsMigrationConfigType,
     client: IClusterClient,
+    postgresClient: any,
     migrationsRetryDelay?: number
   ): IOpenSearchDashboardsMigrator {
     return new OpenSearchDashboardsMigrator({
@@ -483,6 +492,7 @@ export class SavedObjectsService
         this.logger,
         migrationsRetryDelay
       ),
+      postgresClient,
     });
   }
 }

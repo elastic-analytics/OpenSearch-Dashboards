@@ -186,6 +186,7 @@ const mockOptions = () => {
       skip: false,
     },
     client: opensearchClientMock.createOpenSearchClient(),
+    postgresClient: {} as any,
   };
   return options;
 };
