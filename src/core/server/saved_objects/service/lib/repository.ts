@@ -104,7 +104,6 @@ export interface SavedObjectsRepositoryOptions {
   serializer: SavedObjectsSerializer;
   migrator: IOpenSearchDashboardsMigrator;
   allowedTypes: string[];
-  postgresClient: any;
 }
 
 /**
@@ -125,7 +124,7 @@ export interface SavedObjectsDeleteByNamespaceOptions extends SavedObjectsBaseOp
   refresh?: boolean;
 }
 
-const DEFAULT_REFRESH_SETTING = 'wait_for';
+export const DEFAULT_REFRESH_SETTING = 'wait_for';
 
 /**
  * See {@link SavedObjectsRepository}
@@ -137,15 +136,14 @@ export type ISavedObjectsRepository = Pick<SavedObjectsRepository, keyof SavedOb
 /**
  * @public
  */
-export class SavedObjectsRepository {
-  private _migrator: IOpenSearchDashboardsMigrator;
-  private _index: string;
-  private _mappings: IndexMapping;
-  private _registry: SavedObjectTypeRegistry;
-  private _allowedTypes: string[];
-  private readonly client: RepositoryOpenSearchClient;
-  private readonly postgresClient: any;
-  private _serializer: SavedObjectsSerializer;
+export abstract class SavedObjectsRepository {
+  protected _migrator: IOpenSearchDashboardsMigrator;
+  protected _index: string;
+  protected _mappings: IndexMapping;
+  protected _registry: SavedObjectTypeRegistry;
+  protected _allowedTypes: string[];
+  protected readonly client: RepositoryOpenSearchClient;
+  protected _serializer: SavedObjectsSerializer;
 
   /**
    * A factory function for creating SavedObjectRepository instances.
@@ -160,9 +158,8 @@ export class SavedObjectsRepository {
     typeRegistry: SavedObjectTypeRegistry,
     indexName: string,
     client: OpenSearchClient,
-    postgresClient: any,
     includedHiddenTypes: string[] = [],
-    injectedConstructor: any = SavedObjectsRepository
+    injectedConstructor: any
   ): ISavedObjectsRepository {
     const mappings = migrator.getActiveMappings();
     const allTypes = typeRegistry.getAllTypes().map((t) => t.name);
@@ -186,11 +183,11 @@ export class SavedObjectsRepository {
       serializer,
       allowedTypes,
       client,
-      postgresClient,
     });
   }
 
-  private constructor(options: SavedObjectsRepositoryOptions) {
+  protected constructor(options: SavedObjectsRepositoryOptions) {
+    console.log(`I'm coming to base class constructor`);
     const {
       index,
       mappings,
@@ -199,7 +196,6 @@ export class SavedObjectsRepository {
       serializer,
       migrator,
       allowedTypes = [],
-      postgresClient,
     } = options;
 
     // It's important that we migrate documents / mark them as up-to-date
@@ -219,7 +215,6 @@ export class SavedObjectsRepository {
     }
     this._allowedTypes = allowedTypes;
     this._serializer = serializer;
-    this.postgresClient = postgresClient;
   }
 
   /**
@@ -235,105 +230,11 @@ export class SavedObjectsRepository {
    * @property {array} [options.references=[]] - [{ name, type, id }]
    * @returns {promise} - { id, type, version, attributes }
    */
-  public async create<T = unknown>(
+  abstract create<T = unknown>(
     type: string,
     attributes: T,
-    options: SavedObjectsCreateOptions = {}
-  ): Promise<SavedObject<T>> {
-    const {
-      id,
-      migrationVersion,
-      overwrite = false,
-      references = [],
-      refresh = DEFAULT_REFRESH_SETTING,
-      originId,
-      initialNamespaces,
-      version,
-    } = options;
-    const namespace = normalizeNamespace(options.namespace);
-
-    // console.log('Inside create : Persists an object');
-    if (initialNamespaces) {
-      if (!this._registry.isMultiNamespace(type)) {
-        throw SavedObjectsErrorHelpers.createBadRequestError(
-          '"options.initialNamespaces" can only be used on multi-namespace types'
-        );
-      } else if (!initialNamespaces.length) {
-        throw SavedObjectsErrorHelpers.createBadRequestError(
-          '"options.initialNamespaces" must be a non-empty array of strings'
-        );
-      }
-    }
-
-    if (!this._allowedTypes.includes(type)) {
-      throw SavedObjectsErrorHelpers.createUnsupportedTypeError(type);
-    }
-
-    const time = this._getCurrentTime();
-    // console.log('time', time);
-    let savedObjectNamespace;
-    let savedObjectNamespaces: string[] | undefined;
-
-    if (this._registry.isSingleNamespace(type) && namespace) {
-      savedObjectNamespace = namespace;
-    } else if (this._registry.isMultiNamespace(type)) {
-      if (id && overwrite) {
-        // we will overwrite a multi-namespace saved object if it exists; if that happens, ensure we preserve its included namespaces
-        // note: this check throws an error if the object is found but does not exist in this namespace
-        const existingNamespaces = await this.preflightGetNamespaces(type, id, namespace);
-        savedObjectNamespaces = initialNamespaces || existingNamespaces;
-      } else {
-        savedObjectNamespaces = initialNamespaces || getSavedObjectNamespaces(namespace);
-      }
-    }
-
-    const migrated = this._migrator.migrateDocument({
-      id,
-      type,
-      ...(savedObjectNamespace && { namespace: savedObjectNamespace }),
-      ...(savedObjectNamespaces && { namespaces: savedObjectNamespaces }),
-      originId,
-      attributes,
-      migrationVersion,
-      updated_at: time,
-      ...(Array.isArray(references) && { references }),
-    });
-
-    const raw = this._serializer.savedObjectToRaw(migrated as SavedObjectSanitizedDoc);
-
-    const requestParams = {
-      id: raw._id,
-      index: this.getIndexForType(type),
-      refresh,
-      body: raw._source,
-      ...(overwrite && version ? decodeRequestVersion(version) : {}),
-    };
-
-    const { body } =
-      id && overwrite
-        ? await this.client.index(requestParams)
-        : await this.client.create(requestParams);
-
-    // console.log('coming here atleast');
-
-    await this.postgresClient
-      .query(
-        `INSERT INTO kibana(id, body, type, updated_at) VALUES('${
-          requestParams.id
-        }', json('${JSON.stringify(requestParams.body)}'), '${type}', '${time}')`
-      )
-      .then((res: any) => {
-        // console.log('Saved object inserted in kibana table successfully.');
-      })
-      .catch((error: any) => {
-        throw new Error(error);
-      });
-
-    return this._rawToSavedObject<T>({
-      ...raw,
-      ...body,
-    });
-  }
+    options?: SavedObjectsCreateOptions
+  ): Promise<SavedObject<T>>;
 
   /**
    * Creates multiple documents at once
@@ -1587,7 +1488,7 @@ export class SavedObjectsRepository {
    *
    * @param type - the type
    */
-  private getIndexForType(type: string) {
+  protected getIndexForType(type: string) {
     return this._registry.getIndex(type) || this._index;
   }
 
@@ -1598,15 +1499,15 @@ export class SavedObjectsRepository {
    *
    * @param types The types whose indices should be retrieved
    */
-  private getIndicesForTypes(types: string[]) {
+  protected getIndicesForTypes(types: string[]) {
     return unique(types.map((t) => this.getIndexForType(t)));
   }
 
-  private _getCurrentTime() {
+  protected _getCurrentTime() {
     return new Date().toISOString();
   }
 
-  private _rawToSavedObject<T = unknown>(raw: SavedObjectsRawDoc): SavedObject<T> {
+  protected _rawToSavedObject<T = unknown>(raw: SavedObjectsRawDoc): SavedObject<T> {
     const savedObject = this._serializer.rawToSavedObject(raw);
     const { namespace, type } = savedObject;
     if (this._registry.isSingleNamespace(type)) {
@@ -1623,7 +1524,7 @@ export class SavedObjectsRepository {
    * WARNING: This should only be used for documents that were retrieved from OpenSearch. Otherwise, the guarantees of the document ID
    * format mentioned above do not apply.
    */
-  private rawDocExistsInNamespace(raw: SavedObjectsRawDoc, namespace: string | undefined) {
+  protected rawDocExistsInNamespace(raw: SavedObjectsRawDoc, namespace: string | undefined) {
     const rawDocType = raw._source.type;
 
     // if the type is namespace isolated, or namespace agnostic, we can continue to rely on the guarantees
@@ -1651,7 +1552,7 @@ export class SavedObjectsRepository {
    * happen in normal operations, but it is possible if the OpenSearch document is manually modified.
    * @throws Will throw an error if the saved object exists and it does not include the target namespace.
    */
-  private async preflightGetNamespaces(type: string, id: string, namespace?: string) {
+  protected async preflightGetNamespaces(type: string, id: string, namespace?: string) {
     if (!this._registry.isMultiNamespace(type)) {
       throw new Error(`Cannot make preflight get request for non-multi-namespace type '${type}'.`);
     }
@@ -1686,7 +1587,7 @@ export class SavedObjectsRepository {
    * @returns Raw document from OpenSearch.
    * @throws Will throw an error if the saved object is not found, or if it doesn't include the target namespace.
    */
-  private async preflightCheckIncludesNamespace(type: string, id: string, namespace?: string) {
+  protected async preflightCheckIncludesNamespace(type: string, id: string, namespace?: string) {
     if (!this._registry.isMultiNamespace(type)) {
       throw new Error(`Cannot make preflight get request for non-multi-namespace type '${type}'.`);
     }
@@ -1712,7 +1613,11 @@ export class SavedObjectsRepository {
   }
 }
 
-function getBulkOperationError(error: { type: string; reason?: string }, type: string, id: string) {
+export function getBulkOperationError(
+  error: { type: string; reason?: string },
+  type: string,
+  id: string
+) {
   switch (error.type) {
     case 'version_conflict_engine_exception':
       return errorContent(SavedObjectsErrorHelpers.createConflictError(type, id));
@@ -1731,7 +1636,7 @@ function getBulkOperationError(error: { type: string; reason?: string }, type: s
  * @param version Optional version specified by the consumer.
  * @param document Optional existing document that was obtained in a preflight operation.
  */
-function getExpectedVersionProperties(version?: string, document?: SavedObjectsRawDoc) {
+export function getExpectedVersionProperties(version?: string, document?: SavedObjectsRawDoc) {
   if (version) {
     return decodeRequestVersion(version);
   } else if (document) {
@@ -1751,7 +1656,7 @@ function getExpectedVersionProperties(version?: string, document?: SavedObjectsR
  * @param namespace The current namespace.
  * @param document Optional existing saved object that was obtained in a preflight operation.
  */
-function getSavedObjectNamespaces(
+export function getSavedObjectNamespaces(
   namespace?: string,
   document?: SavedObjectsRawDoc
 ): string[] | undefined {
@@ -1771,7 +1676,7 @@ function getSavedObjectNamespaces(
  *
  * @internal
  */
-function getSavedObjectFromSource<T>(
+export function getSavedObjectFromSource<T>(
   registry: ISavedObjectTypeRegistry,
   type: string,
   id: string,
@@ -1803,7 +1708,7 @@ function getSavedObjectFromSource<T>(
  * Ensure that a namespace is always in its namespace ID representation.
  * This allows `'default'` to be used interchangeably with `undefined`.
  */
-const normalizeNamespace = (namespace?: string) => {
+export const normalizeNamespace = (namespace?: string) => {
   if (namespace === ALL_NAMESPACES_STRING) {
     throw SavedObjectsErrorHelpers.createBadRequestError('"options.namespace" cannot be "*"');
   } else if (namespace === undefined) {
@@ -1816,14 +1721,14 @@ const normalizeNamespace = (namespace?: string) => {
 /**
  * Extracts the contents of a decorated error to return the attributes for bulk operations.
  */
-const errorContent = (error: DecoratedError) => error.output.payload;
+export const errorContent = (error: DecoratedError) => error.output.payload;
 
-const unique = (array: string[]) => [...new Set(array)];
+export const unique = (array: string[]) => [...new Set(array)];
 
 /**
  * Type and type guard function for converting a possibly not existant doc to an existant doc.
  */
-type GetResponseFound<TDocument = unknown> = opensearchtypes.GetResponse<TDocument> &
+export type GetResponseFound<TDocument = unknown> = opensearchtypes.GetResponse<TDocument> &
   Required<
     Pick<
       opensearchtypes.GetResponse<TDocument>,
@@ -1831,6 +1736,6 @@ type GetResponseFound<TDocument = unknown> = opensearchtypes.GetResponse<TDocume
     >
   >;
 
-const isFoundGetResponse = <TDocument = unknown>(
+export const isFoundGetResponse = <TDocument = unknown>(
   doc: opensearchtypes.GetResponse<TDocument>
 ): doc is GetResponseFound<TDocument> => doc.found;

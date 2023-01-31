@@ -54,7 +54,6 @@ export interface OpenSearchDashboardsMigratorOptions {
   opensearchDashboardsConfig: OpenSearchDashboardsConfigType;
   opensearchDashboardsVersion: string;
   logger: Logger;
-  postgresClient: any;
 }
 
 export type IOpenSearchDashboardsMigrator = Pick<
@@ -84,7 +83,6 @@ export class OpenSearchDashboardsMigrator {
     status: 'waiting',
   });
   private readonly activeMappings: IndexMapping;
-  private readonly postgresClient: any;
 
   /**
    * Creates an instance of OpenSearchDashboardsMigrator.
@@ -96,7 +94,6 @@ export class OpenSearchDashboardsMigrator {
     savedObjectsConfig,
     opensearchDashboardsVersion,
     logger,
-    postgresClient,
   }: OpenSearchDashboardsMigratorOptions) {
     this.client = client;
     this.opensearchDashboardsConfig = opensearchDashboardsConfig;
@@ -113,7 +110,6 @@ export class OpenSearchDashboardsMigrator {
     // Building the active mappings (and associated md5sums) is an expensive
     // operation so we cache the result
     this.activeMappings = buildActiveMappings(this.mappingProperties);
-    this.postgresClient = postgresClient;
   }
 
   /**
@@ -190,15 +186,6 @@ export class OpenSearchDashboardsMigrator {
         convertToAliasScript: indexMap[index].script,
       });
     });
-
-    await this.postgresClient
-      .query('CREATE TABLE IF NOT EXISTS kibana (id TEXT, body JSON, type text, updated_at TEXT)')
-      .then((res: any) => {
-        this.log.info('Table is successfully created');
-      })
-      .catch((error: any) => {
-        this.log.info(error);
-      });
     return Promise.all(migrators.map((migrator) => migrator.migrate()));
   }
 

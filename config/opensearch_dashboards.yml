@@ -237,3 +237,9 @@
 #data_source.encryption.wrappingKeyName: 'changeme'
 #data_source.encryption.wrappingKeyNamespace: 'changeme'
 #data_source.encryption.wrappingKey: [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]
+
+# savedObjects.db.type: 'changeme'
+# savedObjects.db.hostName: 'changeme'
+# savedObjects.db.userName: 'changeme'
+# savedObjects.db.password: 'changeme'
+# savedObjects.db.port: 5432
