@@ -49,12 +49,24 @@ export const savedObjectsConfig = {
   schema: schema.object({
     maxImportPayloadBytes: schema.byteSize({ defaultValue: 26214400 }),
     maxImportExportSize: schema.byteSize({ defaultValue: 10000 }),
+    db: schema.object({
+      type: schema.string({ defaultValue: 'opensearch' }),
+      hostName: schema.string(),
+      userName: schema.string(),
+      password: schema.string(),
+      port: schema.number(),
+    }),
   }),
 };
 
 export class SavedObjectConfig {
   public maxImportPayloadBytes: number;
   public maxImportExportSize: number;
+  public dbType: string;
+  public dbHostName: string;
+  public dbUserName: string;
+  public dbPassword: string;
+  public dbPort: number;
 
   public migration: SavedObjectsMigrationConfigType;
 
@@ -64,6 +76,11 @@ export class SavedObjectConfig {
   ) {
     this.maxImportPayloadBytes = rawConfig.maxImportPayloadBytes.getValueInBytes();
     this.maxImportExportSize = rawConfig.maxImportExportSize.getValueInBytes();
+    this.dbType = rawConfig.db.type;
+    this.dbHostName = rawConfig.db.hostName;
+    this.dbUserName = rawConfig.db.userName;
+    this.dbPassword = rawConfig.db.password;
+    this.dbPort = rawConfig.db.port;
     this.migration = rawMigrationConfig;
   }
 }

@@ -64,6 +64,8 @@ import { registerRoutes } from './routes';
 import { ServiceStatus } from '../status';
 import { calculateStatus$ } from './status';
 import { createMigrationOpenSearchClient } from './migrations/core/';
+import { PostgresSavedObjectsRepository } from './service/lib/repository/postgres_repository';
+import { OpensearchSavedObjectsRepository } from './service/lib/repository/opensearch_repository';
 /**
  * Saved Objects is OpenSearchDashboards's data persistence mechanism allowing plugins to
  * use OpenSearch for storing and querying state. The SavedObjectsServiceSetup API exposes methods
@@ -368,18 +370,10 @@ export class SavedObjectsService
       .toPromise();
     const client = opensearch.client;
 
-    // Initialize postgres client.
-    // eslint-disable-next-line @typescript-eslint/no-var-requires
-    const pg = require('pg');
-    const connUrl = 'postgres://{USERNAME}:{PASSWORD}@{HOSTNAME}:{PORT}/{DATABASE}';
-    const postgresClient = new pg.Client(connUrl);
-    postgresClient.connect();
-
     const migrator = this.createMigrator(
       opensearchDashboardsConfig,
       this.config.migration,
       opensearch.client,
-      postgresClient,
       migrationsRetryDelay
     );
 
@@ -427,6 +421,8 @@ export class SavedObjectsService
       await migrator.runMigrations();
     }
 
+    const metaStorageRepository = this.selectRepository(this.config);
+
     const createRepository = (
       opensearchClient: OpenSearchClient,
       includedHiddenTypes: string[] = []
@@ -436,8 +432,8 @@ export class SavedObjectsService
         this.typeRegistry,
         opensearchDashboardsConfig.index,
         opensearchClient,
-        postgresClient,
-        includedHiddenTypes
+        includedHiddenTypes,
+        metaStorageRepository
       );
     };
 
@@ -494,7 +490,38 @@ export class SavedObjectsService
         this.logger,
         migrationsRetryDelay
       ),
-      postgresClient,
     });
+  }
+
+  private selectRepository(config: SavedObjectConfig) {
+    const savedObjectsRepository = OpensearchSavedObjectsRepository;
+    switch (config.dbType) {
+      case 'opensearch':
+        return savedObjectsRepository;
+      case 'postgres':
+        this.createTable(config);
+        return PostgresSavedObjectsRepository;
+      default:
+        return savedObjectsRepository;
+    }
+  }
+
+  private async createTable(config: SavedObjectConfig) {
+    // Initialize postgres client.
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const pg = require('pg');
+    // const connUrl = 'postgres://{USERNAME}:{PASSWORD}@{HOSTNAME}:{PORT}/{DATABASE}';
+    const connUrl = `postgres://${config.dbUserName}:${config.dbPassword}@${config.dbHostName}:${config.dbPort}/kibana`;
+    const postgresClient = new pg.Client(connUrl);
+    postgresClient.connect();
+
+    await postgresClient
+      .query('CREATE TABLE IF NOT EXISTS kibana (id TEXT, body JSON, type text, updated_at TEXT)')
+      .then((res: any) => {
+        this.logger.info('Table is successfully created');
+      })
+      .catch((error: any) => {
+        this.logger.info(error);
+      });
   }
 }
