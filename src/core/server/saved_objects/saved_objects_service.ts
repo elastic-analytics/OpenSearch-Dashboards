@@ -103,6 +103,8 @@ import { OpensearchSavedObjectsRepository } from './service/lib/repository/opens
  *
  * @public
  */
+
+let postgresClient: any;
 export interface SavedObjectsServiceSetup {
   /**
    * Set the default {@link SavedObjectsClientFactoryProvider | factory provider} for creating Saved Objects clients.
@@ -422,7 +424,6 @@ export class SavedObjectsService
     }
 
     const metaStorageRepository = this.selectRepository(this.config);
-
     const createRepository = (
       opensearchClient: OpenSearchClient,
       includedHiddenTypes: string[] = []
@@ -433,7 +434,8 @@ export class SavedObjectsService
         opensearchDashboardsConfig.index,
         opensearchClient,
         includedHiddenTypes,
-        metaStorageRepository
+        metaStorageRepository,
+        postgresClient
       );
     };
 
@@ -476,7 +478,6 @@ export class SavedObjectsService
     opensearchDashboardsConfig: OpenSearchDashboardsConfigType,
     savedObjectsConfig: SavedObjectsMigrationConfigType,
     client: IClusterClient,
-    postgresClient: any,
     migrationsRetryDelay?: number
   ): IOpenSearchDashboardsMigrator {
     return new OpenSearchDashboardsMigrator({
@@ -507,12 +508,11 @@ export class SavedObjectsService
   }
 
   private async createTable(config: SavedObjectConfig) {
-    // Initialize postgres client.
     // eslint-disable-next-line @typescript-eslint/no-var-requires
     const pg = require('pg');
     // const connUrl = 'postgres://{USERNAME}:{PASSWORD}@{HOSTNAME}:{PORT}/{DATABASE}';
     const connUrl = `postgres://${config.dbUserName}:${config.dbPassword}@${config.dbHostName}:${config.dbPort}/kibana`;
-    const postgresClient = new pg.Client(connUrl);
+    postgresClient = new pg.Client(connUrl);
     postgresClient.connect();
 
     await postgresClient

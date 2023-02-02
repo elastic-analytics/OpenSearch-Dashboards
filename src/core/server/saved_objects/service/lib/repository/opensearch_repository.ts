@@ -105,25 +105,13 @@ export class OpensearchSavedObjectsRepository extends SavedObjectsRepository {
     } = options;
     const namespace = normalizeNamespace(options.namespace);
 
-    // console.log('Inside create : Persists an object');
-    if (initialNamespaces) {
-      if (!this._registry.isMultiNamespace(type)) {
-        throw SavedObjectsErrorHelpers.createBadRequestError(
-          '"options.initialNamespaces" can only be used on multi-namespace types'
-        );
-      } else if (!initialNamespaces.length) {
-        throw SavedObjectsErrorHelpers.createBadRequestError(
-          '"options.initialNamespaces" must be a non-empty array of strings'
-        );
-      }
-    }
+    if (id && overwrite)
+      console.log(`====================Saved Object is being CREATED==============`);
+    else console.log(`======================Saved object is being UPDATED================`);
 
-    if (!this._allowedTypes.includes(type)) {
-      throw SavedObjectsErrorHelpers.createUnsupportedTypeError(type);
-    }
+    this.validateSavedObjectBeforeCreate(type, initialNamespaces);
 
     const time = this._getCurrentTime();
-    // console.log('time', time);
     let savedObjectNamespace;
     let savedObjectNamespaces: string[] | undefined;
 
@@ -166,21 +154,6 @@ export class OpensearchSavedObjectsRepository extends SavedObjectsRepository {
       id && overwrite
         ? await this.client.index(requestParams)
         : await this.client.create(requestParams);
-
-    // console.log('coming here atleast');
-
-    // await this.postgresClient
-    //   .query(
-    //     `INSERT INTO kibana(id, body, type, updated_at) VALUES('${
-    //       requestParams.id
-    //     }', json('${JSON.stringify(requestParams.body)}'), '${type}', '${time}')`
-    //   )
-    //   .then((res: any) => {
-    //     // console.log('Saved object inserted in kibana table successfully.');
-    //   })
-    //   .catch((error: any) => {
-    //     throw new Error(error);
-    //   });
 
     return this._rawToSavedObject<T>({
       ...raw,

@@ -148,9 +148,10 @@ export abstract class SavedObjectsRepository {
     indexName: string,
     client: OpenSearchClient,
     includedHiddenTypes: string[] = [],
-    injectedConstructor: any
+    injectedConstructor: any,
+    postgresClient: any
   ): ISavedObjectsRepository {
-    console.log(`I'm inside SavedObjectsRepository.createRepository method`);
+    // console.log(`I'm inside SavedObjectsRepository.createRepository method`);
     const mappings = migrator.getActiveMappings();
     const allTypes = typeRegistry.getAllTypes().map((t) => t.name);
     const serializer = new SavedObjectsSerializer(typeRegistry);
@@ -164,16 +165,18 @@ export abstract class SavedObjectsRepository {
     }
 
     const allowedTypes = [...new Set(visibleTypes.concat(includedHiddenTypes))];
-
-    return new injectedConstructor({
-      index: indexName,
-      migrator,
-      mappings,
-      typeRegistry,
-      serializer,
-      allowedTypes,
-      client,
-    });
+    return new injectedConstructor(
+      {
+        index: indexName,
+        migrator,
+        mappings,
+        typeRegistry,
+        serializer,
+        allowedTypes,
+        client,
+      },
+      postgresClient
+    );
   }
 
   protected constructor(options: SavedObjectsRepositoryOptions) {
@@ -525,6 +528,24 @@ export abstract class SavedObjectsRepository {
       throw SavedObjectsErrorHelpers.createGenericNotFoundError(type, id);
     }
     return body;
+  }
+
+  protected validateSavedObjectBeforeCreate(type: string, initialNamespaces?: string[]) {
+    if (initialNamespaces) {
+      if (!this._registry.isMultiNamespace(type)) {
+        throw SavedObjectsErrorHelpers.createBadRequestError(
+          '"options.initialNamespaces" can only be used on multi-namespace types'
+        );
+      } else if (!initialNamespaces.length) {
+        throw SavedObjectsErrorHelpers.createBadRequestError(
+          '"options.initialNamespaces" must be a non-empty array of strings'
+        );
+      }
+    }
+
+    if (!this._allowedTypes.includes(type)) {
+      throw SavedObjectsErrorHelpers.createUnsupportedTypeError(type);
+    }
   }
 }
 
