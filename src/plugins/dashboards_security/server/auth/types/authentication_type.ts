@@ -20,12 +20,13 @@ import { SecuritySessionCookie } from '../../session/security_cookie';
 import { authenticate } from '../../utils/auth_util';
 
 export interface IAuthenticationType {
-  type: string;
+  authType: string;
   authHandler: AuthenticationHandler;
   init: () => Promise<void>;
 }
 
 export type IAuthHandlerConstructor = new (
+  authType: string,
   config: SecurityPluginConfigType,
   sessionStorageFactory: SessionStorageFactory<SecuritySessionCookie>,
   router: IRouter,
@@ -40,17 +41,14 @@ export abstract class AuthenticationType implements IAuthenticationType {
   ];
   protected static readonly REST_API_CALL_HEADER = 'osd-xsrf';
 
-  public type: string;
-
   constructor(
+    public readonly authType: string,
     protected readonly config: SecurityPluginConfigType,
     protected readonly sessionStorageFactory: SessionStorageFactory<SecuritySessionCookie>,
     protected readonly router: IRouter,
     protected readonly coreSetup: CoreSetup,
     protected readonly logger: Logger
-  ) {
-    this.type = '';
-  }
+  ) {}
 
   public authHandler: AuthenticationHandler = async (request, response, toolkit) => {
     // if browser request, auth logic is:

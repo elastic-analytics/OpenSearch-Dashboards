@@ -106,7 +106,7 @@ export const configSchema = schema.object({
         }),
         schema.string({
           defaultValue: '',
-          validate(value) {
+          validate(value: any) {
             const valArray: string[] = [];
             valArray.push(value);
             validateAuthType(valArray);
@@ -147,19 +147,13 @@ export const configSchema = schema.object({
       buttonstyle: schema.string({ defaultValue: '' }),
     }),
   }),
-  multitenancy: schema.object({
-    enabled: schema.boolean({ defaultValue: false }),
-    show_roles: schema.boolean({ defaultValue: false }),
-    enable_filter: schema.boolean({ defaultValue: false }),
-    debug: schema.boolean({ defaultValue: false }),
-    tenants: schema.object({
-      enable_private: schema.boolean({ defaultValue: true }),
-      enable_global: schema.boolean({ defaultValue: true }),
-      preferred: schema.arrayOf(schema.string(), { defaultValue: [] }),
-    }),
-  }),
   configuration: schema.object({
     enabled: schema.boolean({ defaultValue: true }),
+  }),
+  idp: schema.object({
+    setting: schema.mapOf(schema.string(), schema.any(), {
+      defaultValue: { basicauth_opensearch: { base_redirect_url: 'http://localhost:5601' } },
+    }),
   }),
   accountinfo: schema.object({
     enabled: schema.boolean({ defaultValue: false }),
@@ -186,39 +180,6 @@ export const configSchema = schema.object({
       trust_dynamic_headers: schema.boolean({ defaultValue: false }),
     })
   ),
-  proxycache: schema.maybe(
-    schema.object({
-      // when auth.type is proxycache, user_header, roles_header and proxy_header_ip are required
-      user_header: schema.conditional(
-        schema.siblingRef('auth.type'),
-        'proxycache',
-        schema.string(),
-        schema.maybe(schema.string())
-      ),
-      roles_header: schema.conditional(
-        schema.siblingRef('auth.type'),
-        'proxycache',
-        schema.string(),
-        schema.maybe(schema.string())
-      ),
-      proxy_header: schema.maybe(schema.string({ defaultValue: 'x-forwarded-for' })),
-      proxy_header_ip: schema.conditional(
-        schema.siblingRef('auth.type'),
-        'proxycache',
-        schema.string(),
-        schema.maybe(schema.string())
-      ),
-      login_endpoint: schema.maybe(schema.string({ defaultValue: '' })),
-    })
-  ),
-  jwt: schema.maybe(
-    schema.object({
-      enabled: schema.boolean({ defaultValue: false }),
-      login_endpoint: schema.maybe(schema.string()),
-      url_param: schema.string({ defaultValue: 'authorization' }),
-      header: schema.string({ defaultValue: 'Authorization' }),
-    })
-  ),
   ui: schema.object({
     basicauth: schema.object({
       // the login config here is the same as old config `_security.basicauth.login`
@@ -230,14 +191,6 @@ export const configSchema = schema.object({
             'If you have forgotten your username or password, contact your system administrator.',
         }),
         showbrandimage: schema.boolean({ defaultValue: true }),
-        brandimage: schema.string({ defaultValue: '' }),
-        buttonstyle: schema.string({ defaultValue: '' }),
-      }),
-    }),
-    anonymous: schema.object({
-      login: schema.object({
-        buttonname: schema.string({ defaultValue: 'Log in as anonymous' }),
-        showbrandimage: schema.boolean({ defaultValue: false }),
         brandimage: schema.string({ defaultValue: '' }),
         buttonstyle: schema.string({ defaultValue: '' }),
       }),
@@ -271,6 +224,7 @@ export const config: PluginConfigDescriptor<SecurityPluginConfigType> = {
     auth: true,
     ui: true,
     readonly_mode: true,
+    idp: true,
   },
   schema: configSchema,
 };

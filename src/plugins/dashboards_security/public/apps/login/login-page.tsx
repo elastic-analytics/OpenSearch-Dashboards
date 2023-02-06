@@ -3,22 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-/*
- *   Copyright OpenSearch Contributors
- *
- *   Licensed under the Apache License, Version 2.0 (the "License").
- *   You may not use this file except in compliance with the License.
- *   A copy of the License is located at
- *
- *       http://www.apache.org/licenses/LICENSE-2.0
- *
- *   or in the "license" file accompanying this file. This file is distributed
- *   on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either
- *   express or implied. See the License for the specific language governing
- *   permissions and limitations under the License.
- */
-
-import React from 'react';
+import React, { useState } from 'react';
 import {
   EuiText,
   EuiFieldText,
@@ -30,10 +15,20 @@ import {
   EuiForm,
   EuiFormRow,
 } from '@elastic/eui';
+import { AuthType } from 'src/plugins/dashboards_security/common';
+import { ESMap } from 'typescript';
+import { map } from 'bluebird';
 import { CoreStart } from '../../../../../core/public';
 import { ClientConfigType } from '../../types';
 import defaultBrandImage from '../../assets/opensearch_logo_h.svg';
 import { validateCurrentPassword } from '../../utils/auth_utils';
+
+interface LoginButtonConfig {
+  buttonname: string;
+  showbrandimage: boolean;
+  brandimage: string;
+  buttonstyle: string;
+}
 
 interface LoginPageDeps {
   http: CoreStart['http'];
@@ -45,8 +40,6 @@ function redirect(serverBasePath: string) {
   const urlParams = new URLSearchParams(window.location.search);
   let nextUrl = urlParams.get('nextUrl');
   if (!nextUrl || nextUrl.toLowerCase().includes('//')) {
-    // Appending the next url with trailing slash. We do so because in case the serverBasePath is empty, we can simply
-    // redirect to '/'.
     nextUrl = serverBasePath + '/';
   }
   window.location.href = nextUrl + window.location.hash;
@@ -55,16 +48,45 @@ function redirect(serverBasePath: string) {
 export function LoginPage(props: LoginPageDeps) {
   const [username, setUsername] = React.useState('');
   const [password, setPassword] = React.useState('');
+  const [loginFailed, setloginFailed] = useState(false);
+  const [loginError, setloginError] = useState('');
+  const [usernameValidationFailed, setUsernameValidationFailed] = useState(false);
+  const [passwordValidationFailed, setPasswordValidationFailed] = useState(false);
+
+  let errorLabel: any = null;
+  if (loginFailed) {
+    errorLabel = (
+      <EuiText id="error" color="danger" textAlign="center">
+        <b>{loginError}</b>
+      </EuiText>
+    );
+  }
 
   // @ts-ignore : Parameter 'e' implicitly has an 'any' type.
   const handleSubmit = async (e) => {
     e.preventDefault();
 
+    // Clear errors
+    setloginFailed(false);
+    setUsernameValidationFailed(false);
+    setPasswordValidationFailed(false);
+
+    // Form validation
+    if (username === '') {
+      setUsernameValidationFailed(true);
+      return;
+    }
+
+    if (password === '') {
+      setPasswordValidationFailed(true);
+      return;
+    }
     try {
       await validateCurrentPassword(props.http, username, password);
       redirect(props.http.basePath.serverBasePath);
     } catch (error) {
-      // console.log(error);
+      setloginFailed(true);
+      setloginError('Invalid username or password. Please try again.');
       return;
     }
   };
@@ -122,6 +144,41 @@ export function LoginPage(props: LoginPageDeps) {
           </EuiButton>
         </EuiFormRow>
       </EuiForm>
+      <EuiSpacer size="s" />
+      <EuiFormRow>
+        <EuiButton
+          data-test-subj="submit"
+          size="s"
+          type="prime"
+          className={props.config.ui.openid.login.buttonstyle || 'btn-login'}
+          href="/auth/oidc/okta/login"
+          iconType={
+            props.config.ui.openid.login.showbrandimage
+              ? props.config.ui.openid.login.brandimage
+              : ''
+          }
+        >
+          Login with OKTA (OIDC)
+        </EuiButton>
+      </EuiFormRow>
+      <EuiSpacer size="s" />
+      <EuiFormRow>
+        <EuiButton
+          data-test-subj="submit"
+          size="s"
+          type="prime"
+          className={props.config.ui.openid.login.buttonstyle || 'btn-login'}
+          href="/auth/oidc/google/login"
+          iconType={
+            props.config.ui.openid.login.showbrandimage
+              ? props.config.ui.openid.login.brandimage
+              : ''
+          }
+        >
+          Login with Google (OIDC)
+        </EuiButton>
+      </EuiFormRow>
+      {errorLabel}
     </EuiListGroup>
   );
 }

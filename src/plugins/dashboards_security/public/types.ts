@@ -3,6 +3,8 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+import { map } from 'rxjs/operators';
+
 // eslint-disable-next-line @typescript-eslint/no-empty-interface
 export interface SecurityPluginSetup {}
 // eslint-disable-next-line @typescript-eslint/no-empty-interface
@@ -52,5 +54,8 @@ export interface ClientConfigType {
     type: string | string[];
     anonymous_auth_enabled: boolean;
     logout_url: string;
+  };
+  idp: {
+    setting: typeof map;
   };
 }

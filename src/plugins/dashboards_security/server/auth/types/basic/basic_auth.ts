@@ -18,23 +18,23 @@ import { BasicAuthRoutes } from './routes';
 import { AuthenticationType } from '../authentication_type';
 import { LOGIN_PAGE_URI } from '../../../../common';
 import { composeNextUrlQueryParam } from '../../../utils/next_url';
-import { AUTH_HEADER_NAME, AuthType } from '../../../../common';
+import { AUTH_HEADER_NAME } from '../../../../common';
 
 export class BasicAuthentication extends AuthenticationType {
-  public readonly type: string = AuthType.BASIC;
-
   constructor(
+    authType: string,
     config: SecurityPluginConfigType,
     sessionStorageFactory: SessionStorageFactory<SecuritySessionCookie>,
     router: IRouter,
     coreSetup: CoreSetup,
     logger: Logger
   ) {
-    super(config, sessionStorageFactory, router, coreSetup, logger);
+    super(authType, config, sessionStorageFactory, router, coreSetup, logger);
   }
 
   public async init() {
     const routes = new BasicAuthRoutes(
+      this.authType,
       this.router,
       this.config,
       this.sessionStorageFactory,
@@ -61,14 +61,14 @@ export class BasicAuthentication extends AuthenticationType {
       credentials: {
         authHeaderValue: request.headers[AUTH_HEADER_NAME],
       },
-      authType: this.type,
+      authType: this.authType,
       expiryTime: Date.now() + this.config.session.ttl,
     };
   }
 
   async isValidCookie(cookie: SecuritySessionCookie): Promise<boolean> {
     return (
-      cookie.authType === this.type &&
+      cookie.authType === this.authType &&
       cookie.expiryTime &&
       cookie.username &&
       cookie.credentials?.authHeaderValue

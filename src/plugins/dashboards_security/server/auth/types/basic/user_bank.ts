@@ -5,8 +5,8 @@
 
 export interface UserSchema {
   username: string;
-  email: string;
-  password: string;
+  password?: string;
+  authOption?: string;
 }
 
 export const userProfiles = new Map([
@@ -14,16 +14,30 @@ export const userProfiles = new Map([
     'admin',
     {
       username: 'admin',
-      email: 'admin@amazon.com',
       password: 'admin',
+      authOption: 'basicauth_opensearch',
     },
   ],
   [
     'aoguan',
     {
       username: 'aoguan',
-      email: 'aoguan@amazon.com',
       password: 'admin',
+      authOption: 'basicauth_opensearch',
+    },
+  ],
+  [
+    'aoguan@amazon.com',
+    {
+      username: 'aoguan@amazon.com',
+      authOption: 'oidc_okta',
+    },
+  ],
+  [
+    'svc.opensearch.auth@gmail.com',
+    {
+      username: 'svc.opensearch.auth@gmail.com',
+      authOption: 'oidc_okta',
     },
   ],
 ]);

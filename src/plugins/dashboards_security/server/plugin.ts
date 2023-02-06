@@ -17,11 +17,10 @@ import { SecurityPluginConfigType } from '.';
 import { SecuritySessionCookie, getSecurityCookieOptions } from './session/security_cookie';
 import { getAuthenticationHandler } from './auth/auth_handler_factory';
 import { IAuthenticationType } from './auth/types/authentication_type';
-import { AuthType } from '../common';
 
 export class SecurityPlugin implements Plugin<SecurityPluginSetup, SecurityPluginStart> {
   private readonly logger: Logger;
-  public readonly type: string = AuthType.BASIC;
+  // public readonly type: string = AuthType.BASIC;
 
   constructor(private readonly initializerContext: PluginInitializerContext) {
     this.logger = initializerContext.logger.get();
@@ -39,7 +38,6 @@ export class SecurityPlugin implements Plugin<SecurityPluginSetup, SecurityPlugi
 
     // setup auth
     const auth: IAuthenticationType = await getAuthenticationHandler(
-      this.type,
       router,
       config,
       core,

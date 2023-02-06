@@ -25,17 +25,20 @@ import {
   clearOldVersionCookieValue,
 } from '../../../session/security_cookie';
 import { SecurityPluginConfigType } from '../../..';
-import { API_AUTH_LOGIN, API_AUTH_LOGOUT, AuthType, LOGIN_PAGE_URI } from '../../../../common';
+import { LOGIN_PAGE_URI } from '../../../../common';
 import { authenticate } from '../../../utils/auth_util';
 
 export class BasicAuthRoutes {
-  public readonly type: string = AuthType.BASIC;
+  private authProvider: string;
   constructor(
+    private readonly authType: string,
     private readonly router: IRouter,
     private readonly config: SecurityPluginConfigType,
     private readonly sessionStorageFactory: SessionStorageFactory<SecuritySessionCookie>,
     private readonly coreSetup: CoreSetup
-  ) {}
+  ) {
+    this.authProvider = this.authType.split('_')[1];
+  }
 
   public setupRoutes() {
     this.coreSetup.http.resources.register(
@@ -60,7 +63,7 @@ export class BasicAuthRoutes {
     // login using username and password
     this.router.post(
       {
-        path: API_AUTH_LOGIN,
+        path: `/auth/basicauth/${this.authProvider}/login`,
         validate: {
           body: schema.object({
             username: schema.string(),
@@ -72,47 +75,47 @@ export class BasicAuthRoutes {
         },
       },
       async (context, request, response) => {
-        const user = authenticate({
-          username: request.body.username,
-          password: request.body.password,
-        });
+        try {
+          const user = authenticate({
+            username: request.body.username,
+            password: request.body.password,
+          });
 
-        if (user === undefined || user === null) {
+          this.sessionStorageFactory.asScoped(request).clear();
+          const encodedCredentials = Buffer.from(
+            `${request.body.username}:${request.body.password}`
+          ).toString('base64');
+          const sessionStorage: SecuritySessionCookie = {
+            username: user?.username,
+            credentials: {
+              authHeaderValue: `Basic ${encodedCredentials}`,
+            },
+            authType: this.authType,
+            expiryTime: Date.now() + this.config.session.ttl,
+          };
+
+          this.sessionStorageFactory.asScoped(request).set(sessionStorage);
+          await this.sessionStorageFactory.asScoped(request).get();
+          return response.ok({
+            body: {
+              username: user?.username,
+            },
+          });
+        } catch (error: any) {
+          // console.log(`Basic authentication failed: ${error}`);
           return response.unauthorized({
             headers: {
               'www-authenticate': 'User not found',
             },
           });
         }
-
-        this.sessionStorageFactory.asScoped(request).clear();
-        const encodedCredentials = Buffer.from(
-          `${request.body.username}:${request.body.password}`
-        ).toString('base64');
-        const sessionStorage: SecuritySessionCookie = {
-          username: user.username,
-          credentials: {
-            authHeaderValue: `Basic ${encodedCredentials}`,
-          },
-          authType: this.type,
-          isAnonymousAuth: false,
-          expiryTime: Date.now() + this.config.session.ttl,
-        };
-
-        this.sessionStorageFactory.asScoped(request).set(sessionStorage);
-        await this.sessionStorageFactory.asScoped(request).get();
-        return response.ok({
-          body: {
-            username: user.username,
-          },
-        });
       }
     );
 
     // logout
-    this.router.post(
+    this.router.get(
       {
-        path: API_AUTH_LOGOUT,
+        path: `/auth/basicauth/${this.authProvider}/logout`,
         validate: false,
         options: {
           authRequired: false,
