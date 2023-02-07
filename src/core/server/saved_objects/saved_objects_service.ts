@@ -510,18 +510,43 @@ export class SavedObjectsService
   private async createTable(config: SavedObjectConfig) {
     // eslint-disable-next-line @typescript-eslint/no-var-requires
     const pg = require('pg');
-    // const connUrl = 'postgres://{USERNAME}:{PASSWORD}@{HOSTNAME}:{PORT}/{DATABASE}';
-    const connUrl = `postgres://${config.dbUserName}:${config.dbPassword}@${config.dbHostName}:${config.dbPort}/kibana`;
+    const dbName = 'opensearch_dashboards';
+    const connUrl = `postgres://${config.dbUserName}:${config.dbPassword}@${config.dbHostName}:${config.dbPort}`;
     postgresClient = new pg.Client(connUrl);
     postgresClient.connect();
 
     await postgresClient
-      .query('CREATE TABLE IF NOT EXISTS kibana (id TEXT, body JSON, type text, updated_at TEXT)')
+      .query(`CREATE DATABASE ${dbName}`)
+      .then((res: any) => {
+        this.logger.info(`DATABSE ${dbName} is successfully created`);
+      })
+      .catch((error: any) => {
+        this.logger.info(error);
+      });
+    postgresClient.end();
+
+    postgresClient = new pg.Client(`${connUrl}/${dbName}`);
+    postgresClient.connect();
+    await postgresClient
+      .query(
+        `CREATE TABLE IF NOT EXISTS MetadataStore (
+            id TEXT NOT NULL, 
+            type TEXT NOT NULL, 
+            version TEXT,
+            attributes JSONB NOT NULL,
+            reference JSON[] NOT NULL,
+            migrationVersion JSON,
+            namespaces TEXT[],
+            originId TEXT,
+            updated_at TEXT
+            )`
+      )
       .then((res: any) => {
         this.logger.info('Table is successfully created');
       })
       .catch((error: any) => {
-        this.logger.info(error);
+        this.logger.error('Error while creating tabel MetadataStore');
+        this.logger.error(error);
       });
   }
 }
