@@ -44,6 +44,7 @@ import {
   SavedObjectsSerializer,
   SavedObjectsRawDoc,
   SavedObjectsRawDocSource,
+  SavedObjectSanitizedDoc,
 } from '../../serialization';
 import {
   SavedObjectsBulkCreateObject,
@@ -459,43 +460,6 @@ export abstract class SavedObjectsRepository {
   }
 
   /**
-   * Pre-flight check to get a multi-namespace saved object's included namespaces. This ensures that, if the saved object exists, it
-   * includes the target namespace.
-   *
-   * @param type The type of the saved object.
-   * @param id The ID of the saved object.
-   * @param namespace The target namespace.
-   * @returns Array of namespaces that this saved object currently includes, or (if the object does not exist yet) the namespaces that a
-   * newly-created object will include. Value may be undefined if an existing saved object has no namespaces attribute; this should not
-   * happen in normal operations, but it is possible if the OpenSearch document is manually modified.
-   * @throws Will throw an error if the saved object exists and it does not include the target namespace.
-   */
-  protected async preflightGetNamespaces(type: string, id: string, namespace?: string) {
-    if (!this._registry.isMultiNamespace(type)) {
-      throw new Error(`Cannot make preflight get request for non-multi-namespace type '${type}'.`);
-    }
-
-    const { body, statusCode } = await this.client.get<SavedObjectsRawDocSource>(
-      {
-        id: this._serializer.generateRawId(undefined, type, id),
-        index: this.getIndexForType(type),
-      },
-      {
-        ignore: [404],
-      }
-    );
-
-    const indexFound = statusCode !== 404;
-    if (indexFound && isFoundGetResponse(body)) {
-      if (!this.rawDocExistsInNamespace(body, namespace)) {
-        throw SavedObjectsErrorHelpers.createConflictError(type, id);
-      }
-      return getSavedObjectNamespaces(namespace, body);
-    }
-    return getSavedObjectNamespaces(namespace);
-  }
-
-  /**
    * Pre-flight check for a multi-namespace saved object's namespaces. This ensures that, if the saved object exists, it includes the target
    * namespace.
    *
@@ -530,7 +494,58 @@ export abstract class SavedObjectsRepository {
     return body;
   }
 
-  protected validateSavedObjectBeforeCreate(type: string, initialNamespaces?: string[]) {
+  protected getSavedObjectRawDoc<T = unknown>(
+    type: string,
+    attributes: T,
+    options: SavedObjectsCreateOptions,
+    namespace?: string,
+    existingNamespaces?: string[]
+  ) {
+    const {
+      id,
+      migrationVersion,
+      overwrite = false,
+      references = [],
+      originId,
+      initialNamespaces,
+    } = options;
+
+    this.validateSavedObjectBeforeCreate(type, initialNamespaces);
+
+    const time = this._getCurrentTime();
+    let savedObjectNamespace;
+    let savedObjectNamespaces: string[] | undefined;
+
+    if (this._registry.isSingleNamespace(type) && namespace) {
+      savedObjectNamespace = namespace;
+    } else if (this._registry.isMultiNamespace(type)) {
+      savedObjectNamespaces = this.getSavedObjectNamespaces(
+        type,
+        overwrite,
+        id,
+        namespace,
+        initialNamespaces,
+        existingNamespaces
+      );
+    }
+
+    const migrated = this._migrator.migrateDocument({
+      id,
+      type,
+      ...(savedObjectNamespace && { namespace: savedObjectNamespace }),
+      ...(savedObjectNamespaces && { namespaces: savedObjectNamespaces }),
+      originId,
+      attributes,
+      migrationVersion,
+      updated_at: time,
+      ...(Array.isArray(references) && { references }),
+    });
+
+    const raw = this._serializer.savedObjectToRaw(migrated as SavedObjectSanitizedDoc);
+    return raw;
+  }
+
+  private validateSavedObjectBeforeCreate(type: string, initialNamespaces?: string[]) {
     if (initialNamespaces) {
       if (!this._registry.isMultiNamespace(type)) {
         throw SavedObjectsErrorHelpers.createBadRequestError(
@@ -546,6 +561,69 @@ export abstract class SavedObjectsRepository {
     if (!this._allowedTypes.includes(type)) {
       throw SavedObjectsErrorHelpers.createUnsupportedTypeError(type);
     }
+  }
+
+  validateTypeAndNamespace(options: SavedObjectsFindOptions) {
+    const { namespaces, type, typeToNamespacesMap } = options;
+    if (!type && !typeToNamespacesMap) {
+      throw SavedObjectsErrorHelpers.createBadRequestError(
+        'options.type must be a string or an array of strings'
+      );
+    } else if (namespaces?.length === 0 && !typeToNamespacesMap) {
+      throw SavedObjectsErrorHelpers.createBadRequestError(
+        'options.namespaces cannot be an empty array'
+      );
+    } else if (type && typeToNamespacesMap) {
+      throw SavedObjectsErrorHelpers.createBadRequestError(
+        'options.type must be an empty string when options.typeToNamespacesMap is used'
+      );
+    } else if ((!namespaces || namespaces?.length) && typeToNamespacesMap) {
+      throw SavedObjectsErrorHelpers.createBadRequestError(
+        'options.namespaces must be an empty array when options.typeToNamespacesMap is used'
+      );
+    }
+  }
+
+  validateSearchFields(searchFields?: string[]) {
+    if (searchFields && !Array.isArray(searchFields)) {
+      throw SavedObjectsErrorHelpers.createBadRequestError('options.searchFields must be an array');
+    }
+  }
+
+  validateFields(fields?: string[]) {
+    if (fields && !Array.isArray(fields)) {
+      throw SavedObjectsErrorHelpers.createBadRequestError('options.fields must be an array');
+    }
+  }
+
+  private getSavedObjectNamespaces(
+    type: string,
+    overwrite: boolean,
+    id?: string,
+    namespace?: string,
+    initialNamespaces?: string[],
+    existingNamespaces?: string[]
+  ) {
+    let savedObjectNamespaces: string[] | undefined;
+    if (id && overwrite) {
+      // we will overwrite a multi-namespace saved object if it exists; if that happens, ensure we preserve its included namespaces
+      // note: this check throws an error if the object is found but does not exist in this namespace
+      savedObjectNamespaces = initialNamespaces || existingNamespaces;
+    } else {
+      savedObjectNamespaces = initialNamespaces || getSavedObjectNamespaces(namespace);
+    }
+    return savedObjectNamespaces;
+  }
+
+  getAllowedTypes(options: SavedObjectsFindOptions) {
+    const { type, typeToNamespacesMap } = options;
+    const types = type
+      ? Array.isArray(type)
+        ? type
+        : [type]
+      : Array.from(typeToNamespacesMap!.keys());
+    const allowedTypes = types.filter((t) => this._allowedTypes.includes(t));
+    return allowedTypes;
   }
 }
 

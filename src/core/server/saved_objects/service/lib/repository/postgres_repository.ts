@@ -26,11 +26,8 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
-import { opensearchtypes } from '@opensearch-project/opensearch';
-import { SavedObjectSanitizedDoc, SavedObjectsRawDocSource } from '../../../serialization';
+/* eslint-disable no-console */
 import { SavedObject, SavedObjectsBaseOptions, SavedObjectsFindOptions } from '../../../types';
-import { decodeRequestVersion, encodeHitVersion } from '../../../version';
 import {
   SavedObjectsAddToNamespacesOptions,
   SavedObjectsAddToNamespacesResponse,
@@ -51,20 +48,13 @@ import {
   SavedObjectsUpdateOptions,
   SavedObjectsUpdateResponse,
 } from '../../saved_objects_client';
-import { SavedObjectsErrorHelpers } from '../errors';
-import { validateConvertFilterToKueryNode } from '../filter_utils';
-import { includedFields } from '../included_fields';
 import {
-  DEFAULT_REFRESH_SETTING,
-  getSavedObjectNamespaces,
-  isFoundGetResponse,
   normalizeNamespace,
   SavedObjectsDeleteByNamespaceOptions,
   SavedObjectsIncrementCounterOptions,
   SavedObjectsRepository,
   SavedObjectsRepositoryOptions,
 } from '../repository';
-import { getSearchDsl } from '../search_dsl';
 import { FIND_DEFAULT_PAGE, FIND_DEFAULT_PER_PAGE, SavedObjectsUtils } from '../utils';
 
 export class PostgresSavedObjectsRepository extends SavedObjectsRepository {
@@ -83,76 +73,34 @@ export class PostgresSavedObjectsRepository extends SavedObjectsRepository {
   ): Promise<SavedObject<T>> {
     console.log(`I'm inside PostgresSavedObjectsRepository create`);
     console.log('this.index', this._index);
-    const {
-      id,
-      migrationVersion,
-      overwrite = false,
-      references = [],
-      refresh = DEFAULT_REFRESH_SETTING,
-      originId,
-      initialNamespaces,
-      version,
-    } = options;
-    const namespace = normalizeNamespace(options.namespace);
+
+    const id = options.id;
+    const overwrite = options.overwrite;
+    // const refresh = options.refresh; // We don't need refresh for SQL operation.
+    // ToDo: For now we are just storing version in table. Later we need to decide whether we want to use it for concurrency control or not.
+    const version = options.version;
 
     if (id && overwrite)
       console.log(`====================Saved Object is being CREATED==============`);
     else console.log(`======================Saved object is being UPDATED================`);
 
-    this.validateSavedObjectBeforeCreate(type, initialNamespaces);
-
-    const time = this._getCurrentTime();
-    let savedObjectNamespace;
-    let savedObjectNamespaces: string[] | undefined;
-
-    if (this._registry.isSingleNamespace(type) && namespace) {
-      savedObjectNamespace = namespace;
-    } else if (this._registry.isMultiNamespace(type)) {
-      if (id && overwrite) {
-        // we will overwrite a multi-namespace saved object if it exists; if that happens, ensure we preserve its included namespaces
-        // note: this check throws an error if the object is found but does not exist in this namespace
-        const existingNamespaces = await this.preflightGetNamespaces(type, id, namespace);
-        savedObjectNamespaces = initialNamespaces || existingNamespaces;
-      } else {
-        savedObjectNamespaces = initialNamespaces || getSavedObjectNamespaces(namespace);
-      }
+    const namespace = normalizeNamespace(options.namespace);
+    let existingNamespaces: string[] | undefined;
+    if (id && overwrite) {
+      existingNamespaces = await this.preflightGetNamespaces(type, id, namespace);
     }
 
-    const migrated = this._migrator.migrateDocument({
-      id,
-      type,
-      ...(savedObjectNamespace && { namespace: savedObjectNamespace }),
-      ...(savedObjectNamespaces && { namespaces: savedObjectNamespaces }),
-      originId,
-      attributes,
-      migrationVersion,
-      updated_at: time,
-      ...(Array.isArray(references) && { references }),
-    });
+    const raw = this.getSavedObjectRawDoc(type, attributes, options, namespace, existingNamespaces);
 
-    const raw = this._serializer.savedObjectToRaw(migrated as SavedObjectSanitizedDoc);
-
-    const requestParams = {
-      id: raw._id,
-      index: this.getIndexForType(type),
-      refresh,
-      body: raw._source,
-      ...(overwrite && version ? decodeRequestVersion(version) : {}),
-    };
-
-    // ToDo: Needs to be removed
-    const { body } =
-      id && overwrite
-        ? await this.client.index(requestParams)
-        : await this.client.create(requestParams);
-
+    // ToDo: Decide if you want to keep raw._source or raw._source[type] in attributes field.
     await this.postgresClient
       .query(
-        `INSERT INTO kibana(id, body, type, updated_at) VALUES('${
-          requestParams.id
-        }', json('${JSON.stringify(requestParams.body)}'), '${type}', '${time}')`
+        `INSERT INTO metadatastore(id, type, version, attributes, reference, migrationversion, namespaces, originid, updated_at) 
+        VALUES('${raw._id}', '${type}', '${version}', json('${JSON.stringify(raw._source)}'), 
+        ${raw._source.references}, ${raw._source.migrationVersion}, ${raw._source.namespaces},
+        '${raw._source.originId}', '${raw._source.updated_at}')`
       )
-      .then((res: any) => {
+      .then(() => {
         console.log('Saved object inserted in kibana table successfully.');
       })
       .catch((error: any) => {
@@ -161,7 +109,7 @@ export class PostgresSavedObjectsRepository extends SavedObjectsRepository {
 
     return this._rawToSavedObject<T>({
       ...raw,
-      ...body,
+      // ...body, //ToDo: Check what is value of body in case of OpenSearch.
     });
   }
 
@@ -196,142 +144,57 @@ export class PostgresSavedObjectsRepository extends SavedObjectsRepository {
 
   async find<T = unknown>(options: SavedObjectsFindOptions): Promise<SavedObjectsFindResponse<T>> {
     console.log(`I'm inside PostgresSavedObjectsRepository find`);
-    // ToDo: Refactor to remove repetitive code
     const {
       search,
-      defaultSearchOperator = 'OR',
       searchFields,
-      rootSearchFields,
-      hasReference,
       page = FIND_DEFAULT_PAGE,
       perPage = FIND_DEFAULT_PER_PAGE,
-      sortField,
-      sortOrder,
       fields,
-      namespaces,
-      type,
-      typeToNamespacesMap,
-      filter,
-      preference,
     } = options;
 
-    if (!type && !typeToNamespacesMap) {
-      throw SavedObjectsErrorHelpers.createBadRequestError(
-        'options.type must be a string or an array of strings'
-      );
-    } else if (namespaces?.length === 0 && !typeToNamespacesMap) {
-      throw SavedObjectsErrorHelpers.createBadRequestError(
-        'options.namespaces cannot be an empty array'
-      );
-    } else if (type && typeToNamespacesMap) {
-      throw SavedObjectsErrorHelpers.createBadRequestError(
-        'options.type must be an empty string when options.typeToNamespacesMap is used'
-      );
-    } else if ((!namespaces || namespaces?.length) && typeToNamespacesMap) {
-      throw SavedObjectsErrorHelpers.createBadRequestError(
-        'options.namespaces must be an empty array when options.typeToNamespacesMap is used'
-      );
-    }
-
-    const types = type
-      ? Array.isArray(type)
-        ? type
-        : [type]
-      : Array.from(typeToNamespacesMap!.keys());
-    const allowedTypes = types.filter((t) => this._allowedTypes.includes(t));
+    this.validateTypeAndNamespace(options);
+    const allowedTypes = this.getAllowedTypes(options);
     if (allowedTypes.length === 0) {
       return SavedObjectsUtils.createEmptyFindResponse<T>(options);
     }
 
-    if (searchFields && !Array.isArray(searchFields)) {
-      throw SavedObjectsErrorHelpers.createBadRequestError('options.searchFields must be an array');
-    }
+    this.validateSearchFields(searchFields);
 
-    if (fields && !Array.isArray(fields)) {
-      throw SavedObjectsErrorHelpers.createBadRequestError('options.fields must be an array');
-    }
+    this.validateFields(fields);
 
-    let kueryNode;
+    let sql = `SELECT "id", "type", "version", "attributes", "reference", 
+              "migrationversion", "namespaces", "originid", "updated_at" 
+              FROM "metadatastore" where type IN(${allowedTypes
+                // eslint-disable-next-line no-shadow
+                .map((type) => `'${type}'`)
+                .join(',')})`;
+    console.log('SQL statement without search expression >>>>>>>', sql);
 
-    try {
-      if (filter) {
-        kueryNode = validateConvertFilterToKueryNode(allowedTypes, filter, this._mappings);
-      }
-    } catch (e) {
-      if (e.name === 'DQLSyntaxError') {
-        throw SavedObjectsErrorHelpers.createBadRequestError('DQLSyntaxError: ' + e.message);
-      } else {
-        throw e;
-      }
-    }
-
-    const opensearchOptions = {
-      index: this.getIndicesForTypes(allowedTypes),
-      size: perPage,
-      from: perPage * (page - 1),
-      _source: includedFields(type, fields),
-      rest_total_hits_as_int: true,
-      preference,
-      body: {
-        seq_no_primary_term: true,
-        ...getSearchDsl(this._mappings, this._registry, {
-          search,
-          defaultSearchOperator,
-          searchFields,
-          rootSearchFields,
-          type: allowedTypes,
-          sortField,
-          sortOrder,
-          namespaces,
-          typeToNamespacesMap,
-          hasReference,
-          kueryNode,
-        }),
-      },
-    };
-    // ********** This code copied from Mihir's POC *************************
-    // console.trace('Options', JSON.stringify(options, null, 4));
-    // console.trace('Allowed', JSON.stringify(allowedTypes, null, 4));
-    // console.log('opensearchOptions', JSON.stringify(opensearchOptions, null, 4));
-    let sql = `SELECT id,body from kibana where type IN(${allowedTypes
-      .map((type) => `'${type}'`)
-      .join(',')})`;
+    let buildLikeExpr: string | undefined = '';
     if (search) {
-      const buildLikeExpr = searchFields
+      console.log(`search value ${search}`);
+      buildLikeExpr = searchFields
         ?.map(
           (field) =>
-            `json_extract(json_each.value, '$.${field.split('^')[0]}') LIKE '%${search.replace(
-              '*',
-              ''
-            )}%'`
+            `attributes->>'$."${field.split('^')[0]}"') LIKE '%${search.replace('*', '')}%'`
         )
         .join(' OR ');
-      // SELECT kibana.id, kibana.body from kibana, json_each(kibana.body) where json_valid(json_each.value) and json_extract(json_each.value, '$.title') like '%mihson%'
-      sql = `SELECT kibana.id, kibana.body from kibana, json_each(kibana.body) where kibana.type IN(${allowedTypes
-        .map((type) => `'${type}'`)
-        .join(',')}) AND json_valid(json_each.value) AND (${buildLikeExpr})`;
     }
-    console.log('statement', sql);
-    //const results = await this.postgresClient.all(sql);
+    sql = buildLikeExpr ? `${sql} AND (${buildLikeExpr})` : `${sql}`;
+    console.log('statement with search query >>>>>>>>>>', sql);
+    let results: any;
     await this.postgresClient
       .query(sql)
       .then((res: any) => {
-        console.log('results', JSON.stringify(res, null, 4));
+        results = res.rows;
+        console.log('results', JSON.stringify(results, null, 4));
       })
       .catch((error: any) => {
         throw new Error(error);
       });
-    // *************************************************************************
 
-    const { body, statusCode } = await this.client.search<SavedObjectsRawDocSource>(
-      opensearchOptions,
-      {
-        ignore: [404],
-      }
-    );
-    if (statusCode === 404) {
-      // 404 is only possible here if the index is missing, which
-      // we don't want to leak, see "404s from missing index" above
+    // ToDO: Handle 404 case i.e. when the index is missing.
+    if (results && results.length) {
       return {
         page,
         per_page: perPage,
@@ -343,18 +206,19 @@ export class PostgresSavedObjectsRepository extends SavedObjectsRepository {
     return {
       page,
       per_page: perPage,
-      total: body.hits.total,
-      saved_objects: body.hits.hits.map(
-        (hit: opensearchtypes.SearchHit<SavedObjectsRawDocSource>): SavedObjectsFindResult => ({
-          // @ts-expect-error @opensearch-project/opensearch _source is optional
-          ...this._rawToSavedObject(hit),
-          score: hit._score!,
-          // @ts-expect-error @opensearch-project/opensearch _source is optional
-          sort: hit.sort,
+      total: results.length,
+      saved_objects: results.map(
+        (hit: any): SavedObjectsFindResult => ({
+          ...this._rawToSavedObject({
+            _source: JSON.parse(hit.attributes),
+            _id: hit.id,
+            _seq_no: 1,
+            _primary_term: 10,
+          }),
+          score: (hit as any)._score,
         })
       ),
     } as SavedObjectsFindResponse<T>;
-    // throw new Error('Method not implemented');
   }
 
   async bulkGet<T = unknown>(
@@ -371,7 +235,8 @@ export class PostgresSavedObjectsRepository extends SavedObjectsRepository {
     options: SavedObjectsBaseOptions = {}
   ): Promise<SavedObject<T>> {
     console.log(`I'm inside PostgresSavedObjectsRepository get`);
-
+    throw new Error('Method not implemented');
+    /*
     if (!this._allowedTypes.includes(type)) {
       throw SavedObjectsErrorHelpers.createGenericNotFoundError(type, id);
     }
@@ -429,6 +294,7 @@ export class PostgresSavedObjectsRepository extends SavedObjectsRepository {
       references: body._source.references || [],
       migrationVersion: body._source.migrationVersion,
     };
+    */
   }
 
   async update<T = unknown>(
@@ -477,5 +343,10 @@ export class PostgresSavedObjectsRepository extends SavedObjectsRepository {
   ): Promise<SavedObject> {
     console.log(`I'm inside PostgresSavedObjectsRepository incrementCounter`);
     throw new Error('Method not implemented');
+  }
+
+  private async preflightGetNamespaces(type: string, id: string, namespace?: string) {
+    // ToDo: Fetch namespace from database.
+    return undefined;
   }
 }

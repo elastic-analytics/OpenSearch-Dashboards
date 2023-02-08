@@ -26,6 +26,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+/* eslint-disable no-console */
 import uuid from 'uuid';
 import type { opensearchtypes } from '@opensearch-project/opensearch';
 import { DecoratedError, SavedObjectsErrorHelpers } from '../errors';
@@ -93,54 +94,23 @@ export class OpensearchSavedObjectsRepository extends SavedObjectsRepository {
   ): Promise<SavedObject<T>> {
     console.log('I am inside OpensearchSavedObjectsRepository create method');
     console.log('this.index', this._index);
-    const {
-      id,
-      migrationVersion,
-      overwrite = false,
-      references = [],
-      refresh = DEFAULT_REFRESH_SETTING,
-      originId,
-      initialNamespaces,
-      version,
-    } = options;
-    const namespace = normalizeNamespace(options.namespace);
+
+    const id = options.id;
+    const overwrite = options.overwrite;
+    const refresh = options.refresh;
+    const version = options.version;
 
     if (id && overwrite)
       console.log(`====================Saved Object is being CREATED==============`);
     else console.log(`======================Saved object is being UPDATED================`);
 
-    this.validateSavedObjectBeforeCreate(type, initialNamespaces);
-
-    const time = this._getCurrentTime();
-    let savedObjectNamespace;
-    let savedObjectNamespaces: string[] | undefined;
-
-    if (this._registry.isSingleNamespace(type) && namespace) {
-      savedObjectNamespace = namespace;
-    } else if (this._registry.isMultiNamespace(type)) {
-      if (id && overwrite) {
-        // we will overwrite a multi-namespace saved object if it exists; if that happens, ensure we preserve its included namespaces
-        // note: this check throws an error if the object is found but does not exist in this namespace
-        const existingNamespaces = await this.preflightGetNamespaces(type, id, namespace);
-        savedObjectNamespaces = initialNamespaces || existingNamespaces;
-      } else {
-        savedObjectNamespaces = initialNamespaces || getSavedObjectNamespaces(namespace);
-      }
+    const namespace = normalizeNamespace(options.namespace);
+    let existingNamespaces: string[] | undefined;
+    if (id && overwrite) {
+      existingNamespaces = await this.preflightGetNamespaces(type, id, namespace);
     }
 
-    const migrated = this._migrator.migrateDocument({
-      id,
-      type,
-      ...(savedObjectNamespace && { namespace: savedObjectNamespace }),
-      ...(savedObjectNamespaces && { namespaces: savedObjectNamespaces }),
-      originId,
-      attributes,
-      migrationVersion,
-      updated_at: time,
-      ...(Array.isArray(references) && { references }),
-    });
-
-    const raw = this._serializer.savedObjectToRaw(migrated as SavedObjectSanitizedDoc);
+    const raw = this.getSavedObjectRawDoc(type, attributes, options, namespace, existingNamespaces);
 
     const requestParams = {
       id: raw._id,
@@ -547,41 +517,15 @@ export class OpensearchSavedObjectsRepository extends SavedObjectsRepository {
       preference,
     } = options;
 
-    if (!type && !typeToNamespacesMap) {
-      throw SavedObjectsErrorHelpers.createBadRequestError(
-        'options.type must be a string or an array of strings'
-      );
-    } else if (namespaces?.length === 0 && !typeToNamespacesMap) {
-      throw SavedObjectsErrorHelpers.createBadRequestError(
-        'options.namespaces cannot be an empty array'
-      );
-    } else if (type && typeToNamespacesMap) {
-      throw SavedObjectsErrorHelpers.createBadRequestError(
-        'options.type must be an empty string when options.typeToNamespacesMap is used'
-      );
-    } else if ((!namespaces || namespaces?.length) && typeToNamespacesMap) {
-      throw SavedObjectsErrorHelpers.createBadRequestError(
-        'options.namespaces must be an empty array when options.typeToNamespacesMap is used'
-      );
-    }
-
-    const types = type
-      ? Array.isArray(type)
-        ? type
-        : [type]
-      : Array.from(typeToNamespacesMap!.keys());
-    const allowedTypes = types.filter((t) => this._allowedTypes.includes(t));
+    this.validateTypeAndNamespace(options);
+    const allowedTypes = this.getAllowedTypes(options);
     if (allowedTypes.length === 0) {
       return SavedObjectsUtils.createEmptyFindResponse<T>(options);
     }
 
-    if (searchFields && !Array.isArray(searchFields)) {
-      throw SavedObjectsErrorHelpers.createBadRequestError('options.searchFields must be an array');
-    }
+    this.validateSearchFields(searchFields);
 
-    if (fields && !Array.isArray(fields)) {
-      throw SavedObjectsErrorHelpers.createBadRequestError('options.fields must be an array');
-    }
+    this.validateFields(fields);
 
     let kueryNode;
 
@@ -1312,5 +1256,42 @@ export class OpensearchSavedObjectsRepository extends SavedObjectsRepository {
       version: encodeHitVersion(body),
       attributes: body.get?._source[type],
     };
+  }
+
+  /**
+   * Pre-flight check to get a multi-namespace saved object's included namespaces. This ensures that, if the saved object exists, it
+   * includes the target namespace.
+   *
+   * @param type The type of the saved object.
+   * @param id The ID of the saved object.
+   * @param namespace The target namespace.
+   * @returns Array of namespaces that this saved object currently includes, or (if the object does not exist yet) the namespaces that a
+   * newly-created object will include. Value may be undefined if an existing saved object has no namespaces attribute; this should not
+   * happen in normal operations, but it is possible if the OpenSearch document is manually modified.
+   * @throws Will throw an error if the saved object exists and it does not include the target namespace.
+   */
+  private async preflightGetNamespaces(type: string, id: string, namespace?: string) {
+    if (!this._registry.isMultiNamespace(type)) {
+      throw new Error(`Cannot make preflight get request for non-multi-namespace type '${type}'.`);
+    }
+
+    const { body, statusCode } = await this.client.get<SavedObjectsRawDocSource>(
+      {
+        id: this._serializer.generateRawId(undefined, type, id),
+        index: this.getIndexForType(type),
+      },
+      {
+        ignore: [404],
+      }
+    );
+
+    const indexFound = statusCode !== 404;
+    if (indexFound && isFoundGetResponse(body)) {
+      if (!this.rawDocExistsInNamespace(body, namespace)) {
+        throw SavedObjectsErrorHelpers.createConflictError(type, id);
+      }
+      return getSavedObjectNamespaces(namespace, body);
+    }
+    return getSavedObjectNamespaces(namespace);
   }
 }
