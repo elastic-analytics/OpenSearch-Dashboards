@@ -48,6 +48,7 @@ import {
   SavedObjectsUpdateOptions,
   SavedObjectsUpdateResponse,
 } from '../../saved_objects_client';
+import { SavedObjectsErrorHelpers } from '../errors';
 import {
   normalizeNamespace,
   SavedObjectsDeleteByNamespaceOptions,
@@ -91,15 +92,16 @@ export class PostgresSavedObjectsRepository extends SavedObjectsRepository {
     }
 
     const raw = this.getSavedObjectRawDoc(type, attributes, options, namespace, existingNamespaces);
-
+    const query = `INSERT INTO metadatastore(id, type, version, attributes, reference, migrationversion, namespaces, originid, updated_at) 
+    VALUES('${raw._id}', '${type}', '${version ?? ''}', '${JSON.stringify(raw._source)}', 
+    '${JSON.stringify(raw._source.references)}', 
+    '${JSON.stringify(raw._source.migrationVersion ?? '')}', 
+    '${JSON.stringify(raw._source.namespaces ?? [])}',
+    '${raw._source.originId ?? ''}', '${raw._source.updated_at}')`;
+    console.log(`Insert query = ${query}`);
     // ToDo: Decide if you want to keep raw._source or raw._source[type] in attributes field.
     await this.postgresClient
-      .query(
-        `INSERT INTO metadatastore(id, type, version, attributes, reference, migrationversion, namespaces, originid, updated_at) 
-        VALUES('${raw._id}', '${type}', '${version}', json('${JSON.stringify(raw._source)}'), 
-        ${raw._source.references}, ${raw._source.migrationVersion}, ${raw._source.namespaces},
-        '${raw._source.originId}', '${raw._source.updated_at}')`
-      )
+      .query(query)
       .then(() => {
         console.log('Saved object inserted in kibana table successfully.');
       })
@@ -175,8 +177,7 @@ export class PostgresSavedObjectsRepository extends SavedObjectsRepository {
       console.log(`search value ${search}`);
       buildLikeExpr = searchFields
         ?.map(
-          (field) =>
-            `attributes->>'$."${field.split('^')[0]}"') LIKE '%${search.replace('*', '')}%'`
+          (field) => `attributes->>'$."${field.split('^')[0]}"' LIKE '%${search.replace('*', '')}%'`
         )
         .join(' OR ');
     }
@@ -235,14 +236,13 @@ export class PostgresSavedObjectsRepository extends SavedObjectsRepository {
     options: SavedObjectsBaseOptions = {}
   ): Promise<SavedObject<T>> {
     console.log(`I'm inside PostgresSavedObjectsRepository get`);
-    throw new Error('Method not implemented');
-    /*
-    if (!this._allowedTypes.includes(type)) {
-      throw SavedObjectsErrorHelpers.createGenericNotFoundError(type, id);
-    }
+
+    this.validateType(type);
 
     const namespace = normalizeNamespace(options.namespace);
 
+    // ToDo: Find out - 1. Why we are passing index to get api? 2. What is index for type? 3. whta is the index value in case of opensearch?
+    /*
     const { body, statusCode } = await this.client.get<SavedObjectsRawDocSource>(
       {
         id: this._serializer.generateRawId(namespace, type, id),
@@ -250,51 +250,54 @@ export class PostgresSavedObjectsRepository extends SavedObjectsRepository {
       },
       { ignore: [404] }
     );
-    let results;
-    const sql = `SELECT id,body FROM kibana WHERE id='${this._serializer.generateRawId(
-      namespace,
-      type,
-      id
-    )}'`;
-    console.log('SQL statement', sql);
+    */
+    // ToDo: Include index for type in where clause if needed.
+    const query = `SELECT "id", "type", "version", "attributes", "reference", 
+    "migrationversion", "namespaces", "originid", "updated_at" 
+    FROM "metadatastore" where id='${this._serializer.generateRawId(namespace, type, id)}'`;
+    console.log(`SQL statement = ${query}`);
+
+    let results: any;
     await this.postgresClient
-      .query(sql)
+      .query(query)
       .then((res: any) => {
-        results = res;
+        results = res.rows[0];
         console.log('results', JSON.stringify(results, null, 4));
       })
       .catch((error: any) => {
         throw new Error(error);
       });
 
-    const docNotFound = body.found === false || results === undefined;
-    const indexNotFound = statusCode === 404;
-    if (docNotFound || indexNotFound || !this.rawDocExistsInNamespace(body, namespace)) {
-      // see "404s from missing index" above
+    // ToDo: Find out - 1. Do we need to handle index not found?
+    // 2. Implement rawDocExistsInNamespace for RDS. We need convet attributes column to raw saved object and pass it existing rawDocExistsInNamespace.
+    if (!results || results.length === 0)
       throw SavedObjectsErrorHelpers.createGenericNotFoundError(type, id);
-    }
 
-    const { originId, updated_at: updatedAt } = body._source;
+    // const temp = results.attributes;
+
+    const originId = results.originid;
+    const updatedAt = results.updated_at;
+    console.log(`originId = ${originId} and updatedAt = ${updatedAt}`);
 
     let namespaces: string[] = [];
     if (!this._registry.isNamespaceAgnostic(type)) {
-      namespaces = body._source.namespaces ?? [
-        SavedObjectsUtils.namespaceIdToString(body._source.namespace),
-      ];
+      namespaces = results.namespaces ?? [SavedObjectsUtils.namespaceIdToString(results.namespace)];
     }
+    console.log(`namespaces = ${namespaces}`);
+    console.log(`attributes = ${JSON.stringify(results.attributes[type])}`);
 
+    // Todo: Research about version parameter
     return {
       id,
       type,
       namespaces,
       ...(originId && { originId }),
       ...(updatedAt && { updated_at: updatedAt }),
-      version: encodeHitVersion(body),
-      attributes: body._source[type],
-      references: body._source.references || [],
-      migrationVersion: body._source.migrationVersion,
+      // version: encodeHitVersion(body),
+      attributes: results.attributes[type],
+      references: results.references || [],
+      migrationVersion: results.migrationVersion,
     };
-    */
   }
 
   async update<T = unknown>(

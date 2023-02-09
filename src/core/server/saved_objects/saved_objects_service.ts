@@ -534,9 +534,9 @@ export class SavedObjectsService
             type TEXT NOT NULL, 
             version TEXT,
             attributes JSONB NOT NULL,
-            reference JSON[] NOT NULL,
-            migrationVersion JSON,
-            namespaces TEXT[],
+            reference JSONB NOT NULL,
+            migrationVersion JSONB,
+            namespaces JSONB,
             originId TEXT,
             updated_at TEXT
             )`

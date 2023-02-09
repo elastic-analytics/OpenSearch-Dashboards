@@ -558,12 +558,16 @@ export abstract class SavedObjectsRepository {
       }
     }
 
+    this.validateType(type);
+  }
+
+  protected validateType(type: string) {
     if (!this._allowedTypes.includes(type)) {
       throw SavedObjectsErrorHelpers.createUnsupportedTypeError(type);
     }
   }
 
-  validateTypeAndNamespace(options: SavedObjectsFindOptions) {
+  protected validateTypeAndNamespace(options: SavedObjectsFindOptions) {
     const { namespaces, type, typeToNamespacesMap } = options;
     if (!type && !typeToNamespacesMap) {
       throw SavedObjectsErrorHelpers.createBadRequestError(
@@ -584,13 +588,13 @@ export abstract class SavedObjectsRepository {
     }
   }
 
-  validateSearchFields(searchFields?: string[]) {
+  protected validateSearchFields(searchFields?: string[]) {
     if (searchFields && !Array.isArray(searchFields)) {
       throw SavedObjectsErrorHelpers.createBadRequestError('options.searchFields must be an array');
     }
   }
 
-  validateFields(fields?: string[]) {
+  protected validateFields(fields?: string[]) {
     if (fields && !Array.isArray(fields)) {
       throw SavedObjectsErrorHelpers.createBadRequestError('options.fields must be an array');
     }
@@ -615,7 +619,7 @@ export abstract class SavedObjectsRepository {
     return savedObjectNamespaces;
   }
 
-  getAllowedTypes(options: SavedObjectsFindOptions) {
+  protected getAllowedTypes(options: SavedObjectsFindOptions) {
     const { type, typeToNamespacesMap } = options;
     const types = type
       ? Array.isArray(type)

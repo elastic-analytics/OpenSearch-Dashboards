@@ -685,12 +685,18 @@ export class OpensearchSavedObjectsRepository extends SavedObjectsRepository {
   ): Promise<SavedObject<T>> {
     console.log(`I'm inside OpensearchSavedObjectsRepository get`);
 
+    // ToDo: Need to find answer for below question. Once we confirm, either uncomment commented code and remove subsequent function call or remove commented code.
+    /*
     if (!this._allowedTypes.includes(type)) {
+      // Question: Why it is throwing Generic not found error. In other places, for this check it is throwing UnsupportedTypeError
       throw SavedObjectsErrorHelpers.createGenericNotFoundError(type, id);
     }
+    */
+    this.validateType(type);
 
     const namespace = normalizeNamespace(options.namespace);
 
+    console.log(`index value "${this.getIndexForType(type)}" for type "${type}"`);
     const { body, statusCode } = await this.client.get<SavedObjectsRawDocSource>(
       {
         id: this._serializer.generateRawId(namespace, type, id),
