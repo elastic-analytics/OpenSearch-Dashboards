@@ -519,14 +519,13 @@ export abstract class SavedObjectsRepository {
     if (this._registry.isSingleNamespace(type) && namespace) {
       savedObjectNamespace = namespace;
     } else if (this._registry.isMultiNamespace(type)) {
-      savedObjectNamespaces = this.getSavedObjectNamespaces(
-        type,
-        overwrite,
-        id,
-        namespace,
-        initialNamespaces,
-        existingNamespaces
-      );
+      if (id && overwrite) {
+        // we will overwrite a multi-namespace saved object if it exists; if that happens, ensure we preserve its included namespaces
+        // note: this check throws an error if the object is found but does not exist in this namespace
+        savedObjectNamespaces = initialNamespaces || existingNamespaces;
+      } else {
+        savedObjectNamespaces = initialNamespaces || getSavedObjectNamespaces(namespace);
+      }
     }
 
     const migrated = this._migrator.migrateDocument({
@@ -598,25 +597,6 @@ export abstract class SavedObjectsRepository {
     if (fields && !Array.isArray(fields)) {
       throw SavedObjectsErrorHelpers.createBadRequestError('options.fields must be an array');
     }
-  }
-
-  private getSavedObjectNamespaces(
-    type: string,
-    overwrite: boolean,
-    id?: string,
-    namespace?: string,
-    initialNamespaces?: string[],
-    existingNamespaces?: string[]
-  ) {
-    let savedObjectNamespaces: string[] | undefined;
-    if (id && overwrite) {
-      // we will overwrite a multi-namespace saved object if it exists; if that happens, ensure we preserve its included namespaces
-      // note: this check throws an error if the object is found but does not exist in this namespace
-      savedObjectNamespaces = initialNamespaces || existingNamespaces;
-    } else {
-      savedObjectNamespaces = initialNamespaces || getSavedObjectNamespaces(namespace);
-    }
-    return savedObjectNamespaces;
   }
 
   protected getAllowedTypes(options: SavedObjectsFindOptions) {
