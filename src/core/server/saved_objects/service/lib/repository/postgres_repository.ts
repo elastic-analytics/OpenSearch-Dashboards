@@ -120,7 +120,54 @@ export class PostgresSavedObjectsRepository extends SavedObjectsRepository {
     options: SavedObjectsCreateOptions = {}
   ): Promise<SavedObjectsBulkResponse<T>> {
     console.log(`I'm inside PostgresSavedObjectsRepository bulkCreate`);
-    throw new Error('Method not implemented');
+    const namespace = normalizeNamespace(options.namespace);
+    // ToDo: Do validation of objects as we do in OpenSearch.
+    // For sake of POC, we are just inserting all object in a loop.
+    const query = `INSERT INTO metadatastore(id, type, version, attributes, reference, migrationversion, namespaces, originid, updated_at) VALUES `;
+
+    const expectedBulkResult = objects.map((object) => {
+      // const refresh = options.refresh; // We don't need refresh for SQL operation.
+      // ToDo: For now we are just storing version in table. Later we need to decide whether we want to use it for concurrency control or not.
+      const raw = this.getSavedObjectRawDoc(
+        object.type,
+        object.attributes,
+        object as SavedObjectsCreateOptions,
+        namespace,
+        []
+      );
+
+      const insertValuesExpr = `('${raw._id}', '${object.type}',
+    '${object.version ?? ''}', '${JSON.stringify(raw._source).replace(/'/g, `''`)}',
+    '${JSON.stringify(raw._source.references)}',
+    '${JSON.stringify(raw._source.migrationVersion ?? '')}',
+    '${JSON.stringify(raw._source.namespaces ?? [])}',
+    '${raw._source.originId ?? ''}', '${raw._source.updated_at}')`;
+      // ToDo: Decide if you want to keep raw._source or raw._source[type] in attributes field.
+      // Refactor code to insert all rows in single transaction.
+      this.postgresClient
+        .query(`${query} ${insertValuesExpr}`)
+        .then(() => {
+          console.log('Saved object inserted in kibana table successfully.');
+        })
+        .catch((error: any) => {
+          console.error(`error occurred for this query -> "${query} ${insertValuesExpr}"`);
+          throw new Error(error);
+        });
+      const expectedResult = { rawMigratedDoc: raw };
+      return { tag: 'Right' as 'Right', value: expectedResult };
+    });
+
+    return {
+      saved_objects: expectedBulkResult.map((expectedResult) => {
+        // When method == 'index' the bulkResponse doesn't include the indexed
+        // _source so we return rawMigratedDoc but have to spread the latest
+        // _seq_no and _primary_term values from the rawResponse.
+        const { rawMigratedDoc } = expectedResult.value;
+        return this._rawToSavedObject({
+          ...rawMigratedDoc,
+        });
+      }),
+    };
   }
 
   async checkConflicts(
