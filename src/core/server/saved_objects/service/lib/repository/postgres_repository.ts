@@ -392,7 +392,76 @@ export class PostgresSavedObjectsRepository extends SavedObjectsRepository {
     options: SavedObjectsIncrementCounterOptions = {}
   ): Promise<SavedObject> {
     console.log(`I'm inside PostgresSavedObjectsRepository incrementCounter`);
-    throw new Error('Method not implemented');
+    // ToDo: Do validation of some fields as we are doing in case of OpenSearch.
+    const namespace = normalizeNamespace(options.namespace);
+    const time = this._getCurrentTime();
+    const existingNamespaces = await this.preflightGetNamespaces(type, id, namespace);
+    const raw = this.getSavedObjectRawDoc(
+      type,
+      { [counterFieldName]: 1 },
+      options,
+      namespace,
+      existingNamespaces
+    );
+
+    const selectQuery = `SELECT "attributes" FROM "metadatastore" where id='${raw._id}'`;
+    console.log(`SQL statement = ${selectQuery}`);
+
+    let attributes: any;
+    await this.postgresClient
+      .query(selectQuery)
+      .then((res: any) => {
+        if (res && res.length > 0) {
+          attributes = res.rows[0].attributes;
+          console.log('attributes', JSON.stringify(attributes, null, 4));
+        }
+      })
+      .catch((error: any) => {
+        throw new Error(error);
+      });
+
+    if (attributes) {
+      if (attributes[type][counterFieldName] == null) {
+        attributes[type][counterFieldName] = 1;
+      } else {
+        attributes[type][counterFieldName] += 1;
+      }
+
+      console.log(`Updtaed attributes = ${JSON.stringify(attributes)}`);
+
+      const updateQuery = `UPDATE metadatastore SET attributes=${attributes}, updated_at=${time} WHERE id=${raw._id}`;
+      await this.postgresClient
+        .query(updateQuery)
+        .then((res: any) => {
+          raw._source = attributes;
+          console.log(`incremented counter successfully`);
+        })
+        .catch((error: any) => {
+          throw new Error(error);
+        });
+    } else {
+      raw._source[type][counterFieldName] = 1;
+      const insertQuery = `INSERT INTO metadatastore(id, type, attributes, reference, migrationversion, namespaces, originid, updated_at) 
+        VALUES('${raw._id}', '${type}', '${JSON.stringify(raw._source)}', 
+        '${JSON.stringify(raw._source.references)}', 
+        '${JSON.stringify(raw._source.migrationVersion ?? '')}', 
+        '${JSON.stringify(raw._source.namespaces ?? [])}',
+        '${raw._source.originId ?? ''}', '${raw._source.updated_at}')`;
+      console.log(`Insert query = ${insertQuery}`);
+      // ToDo: Decide if you want to keep raw._source or raw._source[type] in attributes field.
+      await this.postgresClient
+        .query(insertQuery)
+        .then(() => {
+          console.log('Saved object inserted in kibana table successfully.');
+        })
+        .catch((error: any) => {
+          throw new Error(error);
+        });
+    }
+
+    return this._rawToSavedObject({
+      ...raw,
+    });
   }
 
   private async preflightGetNamespaces(type: string, id: string, namespace?: string) {

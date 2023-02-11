@@ -399,7 +399,7 @@ export abstract class SavedObjectsRepository {
     type: string,
     id: string,
     counterFieldName: string,
-    options: SavedObjectsIncrementCounterOptions
+    options?: SavedObjectsIncrementCounterOptions
   ): Promise<SavedObject>;
 
   /**
