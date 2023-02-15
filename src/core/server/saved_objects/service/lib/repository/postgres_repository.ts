@@ -95,11 +95,12 @@ export class PostgresSavedObjectsRepository extends SavedObjectsRepository {
     const query = `INSERT INTO metadatastore(id, type, version, attributes, reference, migrationversion, namespaces, originid, updated_at) 
     VALUES('${raw._id}', '${type}', '${version ?? ''}', '${JSON.stringify(raw._source)}', 
     '${JSON.stringify(raw._source.references)}', 
-    '${JSON.stringify(raw._source.migrationVersion ?? '')}', 
+    '${JSON.stringify(raw._source.migrationVersion ?? {})}', 
     '${JSON.stringify(raw._source.namespaces ?? [])}',
     '${raw._source.originId ?? ''}', '${raw._source.updated_at}')`;
     console.log(`Insert query = ${query}`);
     // ToDo: Decide if you want to keep raw._source or raw._source[type] in attributes field.
+    // Above decision to be made after we decide on search functionality.
     await this.postgresClient
       .query(query)
       .then(() => {
@@ -139,7 +140,7 @@ export class PostgresSavedObjectsRepository extends SavedObjectsRepository {
       const insertValuesExpr = `('${raw._id}', '${object.type}',
     '${object.version ?? ''}', '${JSON.stringify(raw._source).replace(/'/g, `''`)}',
     '${JSON.stringify(raw._source.references)}',
-    '${JSON.stringify(raw._source.migrationVersion ?? '')}',
+    '${JSON.stringify(raw._source.migrationVersion ?? {})}',
     '${JSON.stringify(raw._source.namespaces ?? [])}',
     '${raw._source.originId ?? ''}', '${raw._source.updated_at}')`;
       // ToDo: Decide if you want to keep raw._source or raw._source[type] in attributes field.
@@ -331,7 +332,7 @@ export class PostgresSavedObjectsRepository extends SavedObjectsRepository {
       namespaces = results.namespaces ?? [SavedObjectsUtils.namespaceIdToString(results.namespace)];
     }
     console.log(`namespaces = ${namespaces}`);
-    console.log(`attributes = ${JSON.stringify(results.attributes[type])}`);
+    // console.log(`attributes = ${JSON.stringify(results.attributes[type])}`);
 
     // Todo: Research about version parameter
     return {
@@ -354,7 +355,63 @@ export class PostgresSavedObjectsRepository extends SavedObjectsRepository {
     options: SavedObjectsUpdateOptions = {}
   ): Promise<SavedObjectsUpdateResponse<T>> {
     console.log(`I'm inside PostgresSavedObjectsRepository update`);
-    throw new Error('Method not implemented');
+    // ToDo: Do validation of some fields as we are doing in case of OpenSearch.
+
+    const references = options.references ?? [];
+    const namespace = normalizeNamespace(options.namespace);
+    const time = this._getCurrentTime();
+
+    const selectQuery = `SELECT "originid", "attributes" , "namespaces" 
+    FROM "metadatastore" where id='${this._serializer.generateRawId(namespace, type, id)}'`;
+    console.log(`SQL statement = ${selectQuery}`);
+
+    let results: any;
+    await this.postgresClient
+      .query(selectQuery)
+      .then((res: any) => {
+        if (res && res.rows.length > 0) {
+          results = res.rows[0].attributes;
+          console.log('attributes', JSON.stringify(attributes, null, 4));
+        }
+      })
+      .catch((error: any) => {
+        throw new Error(error);
+      });
+
+    if (results) {
+      results[type] = attributes;
+      // Update attributes, references, updated_at
+      const updateQuery = `UPDATE metadatastore SET 
+        attributes='${JSON.stringify(results)}', 
+        updated_at='${time}', reference='${JSON.stringify(references)}' 
+        WHERE id='${this._serializer.generateRawId(namespace, type, id)}'`;
+      console.log(`SQL statement = ${updateQuery}`);
+      await this.postgresClient
+        .query(updateQuery)
+        .then((res: any) => {
+          console.log(`update operation is successful.`);
+        })
+        .catch((error: any) => {
+          throw new Error(error);
+        });
+    }
+
+    const { originId } = results.originId ?? {};
+    let namespaces: string[] = [];
+    if (!this._registry.isNamespaceAgnostic(type)) {
+      namespaces = results.namespaces ?? [];
+    }
+
+    return {
+      id,
+      type,
+      updated_at: time,
+      // version: encodeHitVersion(body),
+      namespaces,
+      ...(originId && { originId }),
+      references,
+      attributes: results,
+    };
   }
 
   async addToNamespaces(
@@ -411,7 +468,7 @@ export class PostgresSavedObjectsRepository extends SavedObjectsRepository {
     await this.postgresClient
       .query(selectQuery)
       .then((res: any) => {
-        if (res && res.length > 0) {
+        if (res && res.rows.length > 0) {
           attributes = res.rows[0].attributes;
           console.log('attributes', JSON.stringify(attributes, null, 4));
         }
@@ -441,10 +498,11 @@ export class PostgresSavedObjectsRepository extends SavedObjectsRepository {
         });
     } else {
       raw._source[type][counterFieldName] = 1;
+      console.log(`raw._source.migrationVersion = ${raw._source.migrationVersion} `);
       const insertQuery = `INSERT INTO metadatastore(id, type, attributes, reference, migrationversion, namespaces, originid, updated_at) 
         VALUES('${raw._id}', '${type}', '${JSON.stringify(raw._source)}', 
         '${JSON.stringify(raw._source.references)}', 
-        '${JSON.stringify(raw._source.migrationVersion ?? '')}', 
+        '${JSON.stringify(raw._source.migrationVersion ?? {})}', 
         '${JSON.stringify(raw._source.namespaces ?? [])}',
         '${raw._source.originId ?? ''}', '${raw._source.updated_at}')`;
       console.log(`Insert query = ${insertQuery}`);
