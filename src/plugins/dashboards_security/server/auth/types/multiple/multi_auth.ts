@@ -29,12 +29,13 @@ import {
 import { OpenSearchDashboardsResponse } from '../../../../../../src/core/server/http/router';
 import { SecurityPluginConfigType } from '../../..';
 import { AuthenticationType } from '../authentication_type';
-import { ANONYMOUS_AUTH_LOGIN, AuthType, LOGIN_PAGE_URI } from '../../../../common';
+import { AuthType, LOGIN_PAGE_URI } from '../../../../common';
 import { composeNextUrlQueryParam } from '../../../utils/next_url';
 import { SecuritySessionCookie } from '../../../session/security_cookie';
 import { BasicAuthentication, OpenIdAuthentication } from '../../types';
 import { getAuthTypes } from '../../../utils/common_util';
 import { MultiAuthRoutes } from './routes';
+import { SamlAuthentication } from '../saml/saml_auth';
 
 export class MultipleAuthentication extends AuthenticationType {
   private authTypes: string[];
@@ -84,6 +85,19 @@ export class MultipleAuthentication extends AuthenticationType {
           );
           await OidcAuth.init();
           this.authHandlers.set(type, OidcAuth);
+          break;
+        }
+        case AuthType.SAML: {
+          const SamlAuth = new SamlAuthentication(
+            type,
+            this.config,
+            this.sessionStorageFactory,
+            this.router,
+            this.coreSetup,
+            this.logger
+          );
+          await SamlAuth.init();
+          this.authHandlers.set(type, SamlAuth);
           break;
         }
         default: {
