@@ -19,8 +19,6 @@
  */
 
 import { schema } from '@osd/config-schema';
-import { compileSchema } from 'ajv/dist/compile';
-import { XMLParser } from 'fast-xml-parser';
 import {
   IRouter,
   SessionStorageFactory,
@@ -28,27 +26,38 @@ import {
 } from '../../../../../../../src/core/server';
 import { SecuritySessionCookie } from '../../../session/security_cookie';
 import { SecurityPluginConfigType } from '../../..';
-import { SecurityClient } from '../../../backend/opensearch_security_client';
 import { CoreSetup } from '../../../../../../../src/core/server';
 import { validateNextUrl } from '../../../utils/next_url';
-import { AuthType, idpCert, SAML_AUTH_LOGIN, SAML_AUTH_LOGOUT } from '../../../../common';
+import { AuthType, idpCert } from '../../../../common';
 import { AuthToken } from './utils/AuthToken';
 import { HapiSaml } from './utils/HapiSaml';
+import {
+  authenticateWithHeader,
+  authinfo,
+  authToken,
+  getSamlHeader,
+} from '../../../utils/auth_util';
 
 export class SamlAuthRoutes {
+  private authProvider: string;
+  private idpConfig: any;
+
   constructor(
+    private readonly authType: string,
     private readonly router: IRouter,
     // @ts-ignore: unused variable
     private readonly config: SecurityPluginConfigType,
     private readonly sessionStorageFactory: SessionStorageFactory<SecuritySessionCookie>,
-    private readonly securityClient: SecurityClient,
     private readonly coreSetup: CoreSetup
-  ) {}
+  ) {
+    this.authProvider = authType.split('_')[1];
+    this.idpConfig = this.config.idp.setting.get(this.authType);
+  }
 
   public setupRoutes() {
     this.router.get(
       {
-        path: SAML_AUTH_LOGIN,
+        path: `/auth/saml/${this.authProvider}/login`,
         validate: {
           query: schema.object({
             nextUrl: schema.maybe(
@@ -63,6 +72,7 @@ export class SamlAuthRoutes {
         },
       },
       async (context, request, response) => {
+        console.log('Enter SAML Login:: ', `/auth/saml/${this.authProvider}/login`);
         if (request.auth.isAuthenticated) {
           return response.redirected({
             headers: {
@@ -72,7 +82,7 @@ export class SamlAuthRoutes {
         }
 
         try {
-          const samlHeader = await this.securityClient.getSamlHeader(request);
+          const samlHeader = await getSamlHeader(request);
           // const { nextUrl = '/' } = request.query;
           const cookie: SecuritySessionCookie = {
             saml: {
@@ -87,7 +97,7 @@ export class SamlAuthRoutes {
             },
           });
         } catch (error) {
-          context.security_plugin.logger.error(`Failed to get saml header: ${error}`);
+          console.log(`Failed to get saml header: ${error}`);
           return response.internalError(); // TODO: redirect to error page?
         }
       }
@@ -120,12 +130,12 @@ export class SamlAuthRoutes {
             });
           }
         } catch (error) {
-          context.security_plugin.logger.error(`Failed to parse cookie: ${error}`);
+          console.log(`Failed to parse cookie: ${error}`);
           return response.badRequest();
         }
 
         try {
-          const authInfo = await this.securityClient.authinfo(request);
+          const authInfo = await authinfo(request);
 
           const samlOptions = {
             // passport saml settings
@@ -190,7 +200,7 @@ export class SamlAuthRoutes {
           try {
             profile = (await saml.validatePostResponseAsync({ SAMLResponse })) || {};
           } catch (error: any) {
-            context.security_plugin.logger.error(`Error while validating SAML response: ${error}`);
+            console.log(`Error while validating SAML response: ${error}`);
             return response.internalError();
           }
 
@@ -232,9 +242,7 @@ export class SamlAuthRoutes {
             },
           });
         } catch (error) {
-          context.security_plugin.logger.error(
-            `SAML SP initiated authentication workflow failed: ${error}`
-          );
+          console.log(`SAML SP initiated authentication workflow failed: ${error}`);
         }
 
         return response.internalError();
@@ -254,12 +262,8 @@ export class SamlAuthRoutes {
       async (context, request, response) => {
         const acsEndpoint = `${this.coreSetup.http.basePath.serverBasePath}/_opendistro/_security/saml/acs/idpinitiated`;
         try {
-          const credentials = await this.securityClient.authToken(
-            undefined,
-            request.body.SAMLResponse,
-            acsEndpoint
-          );
-          const user = await this.securityClient.authenticateWithHeader(
+          const credentials = await authToken(undefined, request.body.SAMLResponse, acsEndpoint);
+          const user = await authenticateWithHeader(
             request,
             'authorization',
             credentials.authorization
@@ -268,7 +272,7 @@ export class SamlAuthRoutes {
           let expiryTime = Date.now() + this.config.session.ttl;
           const [headerEncoded, payloadEncoded, signature] = credentials.authorization.split('.');
           if (!payloadEncoded) {
-            context.security_plugin.logger.error('JWT token payload not found');
+            console.log('JWT token payload not found');
           }
           const tokenPayload = JSON.parse(Buffer.from(payloadEncoded, 'base64').toString());
           if (tokenPayload.exp) {
@@ -290,9 +294,7 @@ export class SamlAuthRoutes {
             },
           });
         } catch (error) {
-          context.security_plugin.logger.error(
-            `SAML IDP initiated authentication workflow failed: ${error}`
-          );
+          console.log(`SAML IDP initiated authentication workflow failed: ${error}`);
         }
         return response.internalError();
       }
@@ -300,12 +302,12 @@ export class SamlAuthRoutes {
 
     this.router.get(
       {
-        path: SAML_AUTH_LOGOUT,
+        path: `/auth/saml/${this.authProvider}/logout`,
         validate: false,
       },
       async (context, request, response) => {
         try {
-          const authInfo = await this.securityClient.authinfo(request);
+          const authInfo = await authinfo(request);
           this.sessionStorageFactory.asScoped(request).clear();
           // TODO: need a default logout page
           const redirectUrl =
@@ -316,7 +318,7 @@ export class SamlAuthRoutes {
             },
           });
         } catch (error) {
-          context.security_plugin.logger.error(`SAML logout failed: ${error}`);
+          console.log(`SAML logout failed: ${error}`);
           return response.badRequest();
         }
       }

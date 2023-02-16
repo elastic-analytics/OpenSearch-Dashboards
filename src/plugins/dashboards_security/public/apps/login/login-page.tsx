@@ -178,6 +178,23 @@ export function LoginPage(props: LoginPageDeps) {
           Login with Google (OIDC)
         </EuiButton>
       </EuiFormRow>
+      <EuiSpacer size="s" />
+      <EuiFormRow>
+        <EuiButton
+          data-test-subj="submit"
+          size="s"
+          type="prime"
+          className={props.config.ui.openid.login.buttonstyle || 'btn-login'}
+          href="/auth/saml/onelogin/login"
+          iconType={
+            props.config.ui.openid.login.showbrandimage
+              ? props.config.ui.openid.login.brandimage
+              : ''
+          }
+        >
+          Login with OneLogin (SAML)
+        </EuiButton>
+      </EuiFormRow>
       {errorLabel}
     </EuiListGroup>
   );

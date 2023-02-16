@@ -1,4 +1,9 @@
 /*
+ * Copyright OpenSearch Contributors
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
+/*
  *   Copyright OpenSearch Contributors
  *
  *   Licensed under the Apache License, Version 2.0 (the "License").
@@ -13,20 +18,18 @@
  *   permissions and limitations under the License.
  */
 
-import { escape } from 'querystring';
 import { CoreSetup } from 'opensearch-dashboards/server';
-import { SecurityPluginConfigType } from '../../..';
 import {
   SessionStorageFactory,
   IRouter,
-  ILegacyClusterClient,
   OpenSearchDashboardsRequest,
   AuthToolkit,
   Logger,
   LifecycleResponseFactory,
   IOpenSearchDashboardsResponse,
   AuthResult,
-} from '../../../../../../src/core/server';
+} from 'opensearch-dashboards/server';
+import { SecurityPluginConfigType } from '../../..';
 import {
   SecuritySessionCookie,
   clearOldVersionCookieValue,
@@ -38,17 +41,15 @@ import { AuthType, jwtKey } from '../../../../common';
 export class SamlAuthentication extends AuthenticationType {
   public static readonly AUTH_HEADER_NAME = 'authorization';
 
-  public readonly type: string = 'saml';
-
   constructor(
+    authType: string,
     config: SecurityPluginConfigType,
     sessionStorageFactory: SessionStorageFactory<SecuritySessionCookie>,
     router: IRouter,
-    esClient: ILegacyClusterClient,
     coreSetup: CoreSetup,
     logger: Logger
   ) {
-    super(config, sessionStorageFactory, router, esClient, coreSetup, logger);
+    super(authType, config, sessionStorageFactory, router, coreSetup, logger);
   }
 
   private generateNextUrl(request: OpenSearchDashboardsRequest): string {
@@ -69,6 +70,7 @@ export class SamlAuthentication extends AuthenticationType {
 
   public async init() {
     const samlAuthRoutes = new SamlAuthRoutes(
+      this.authType,
       this.router,
       this.config,
       this.sessionStorageFactory,
@@ -99,14 +101,15 @@ export class SamlAuthentication extends AuthenticationType {
   // Can be improved to check if the token is expiring.
   async isValidCookie(cookie: SecuritySessionCookie): Promise<boolean> {
     // Validate JWT token in cookie
-    var jwt = require('jsonwebtoken');
+    /*
+    let jwt = require('jsonwebtoken');
     try {
       const token = cookie.credentials.authHeaderValue;
       const decodedToken = jwt.verify(token, jwtKey);
     } catch (error: any) {
       this.logger.error(`Failed to validate token: ${error}`);
     //   return false;
-    }
+    }*/
 
     return (
       cookie.authType === AuthType.SAML &&
