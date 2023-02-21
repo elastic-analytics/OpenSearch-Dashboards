@@ -50,11 +50,14 @@ import {
 } from '../../saved_objects_client';
 import { SavedObjectsErrorHelpers } from '../errors';
 import {
+  errorContent,
+  isLeft,
   normalizeNamespace,
   SavedObjectsDeleteByNamespaceOptions,
   SavedObjectsIncrementCounterOptions,
   SavedObjectsRepository,
   SavedObjectsRepositoryOptions,
+  getSavedObjectFromSource,
 } from '../repository';
 import { FIND_DEFAULT_PAGE, FIND_DEFAULT_PER_PAGE, SavedObjectsUtils } from '../utils';
 
@@ -236,14 +239,14 @@ export class PostgresSavedObjectsRepository extends SavedObjectsRepository {
       .query(sql)
       .then((res: any) => {
         results = res.rows;
-        console.log('results', JSON.stringify(results, null, 4));
+        // console.log('results', JSON.stringify(results, null, 4));
       })
       .catch((error: any) => {
         throw new Error(error);
       });
 
     // ToDO: Handle 404 case i.e. when the index is missing.
-    if (results && results.length) {
+    if (!results || results.length === 0) {
       return {
         page,
         per_page: perPage,
@@ -259,7 +262,7 @@ export class PostgresSavedObjectsRepository extends SavedObjectsRepository {
       saved_objects: results.map(
         (hit: any): SavedObjectsFindResult => ({
           ...this._rawToSavedObject({
-            _source: JSON.parse(hit.attributes),
+            _source: hit.attributes,
             _id: hit.id,
             _seq_no: 1,
             _primary_term: 10,
@@ -275,7 +278,74 @@ export class PostgresSavedObjectsRepository extends SavedObjectsRepository {
     options: SavedObjectsBaseOptions = {}
   ): Promise<SavedObjectsBulkResponse<T>> {
     console.log(`I'm inside PostgresSavedObjectsRepository bulkGet`);
-    throw new Error('Method not implemented');
+    const namespace = normalizeNamespace(options.namespace);
+
+    if (objects.length === 0) {
+      return { saved_objects: [] };
+    }
+    const expectedBulkGetResults = await Promise.all(
+      objects.map(async (object) => {
+        const { type, id } = object;
+        const query = `SELECT "id", "type", "version", "attributes", "reference", 
+      "migrationversion", "namespaces", "originid", "updated_at" 
+      FROM "metadatastore" where id='${this._serializer.generateRawId(namespace, type, id)}'`;
+
+        let results: any;
+        await this.postgresClient
+          .query(query)
+          .then((res: any) => {
+            results = res.rows[0];
+            console.log('results', JSON.stringify(results, null, 4));
+          })
+          .catch((error: any) => {
+            throw new Error(error);
+          });
+
+        if (results) {
+          const expectedResult = {
+            type,
+            id,
+            results,
+          };
+          return { tag: 'Right' as 'Right', value: expectedResult };
+        }
+        return {
+          tag: 'Left' as 'Left',
+          error: {
+            id,
+            type,
+            error: errorContent(SavedObjectsErrorHelpers.createGenericNotFoundError(type, id)),
+          },
+        };
+      })
+    );
+
+    return {
+      saved_objects: expectedBulkGetResults.map((expectedResult) => {
+        console.log('expectedResult', JSON.stringify(expectedResult, null, 4));
+        if (isLeft(expectedResult)) {
+          console.log(`Left result!!!!`);
+          return expectedResult.error as any;
+        }
+        const { type, id, results } = expectedResult.value;
+        console.log('results', JSON.stringify(results, null, 4));
+
+        if (!results || results.length === 0) {
+          console.log(`results are not coming!!!`);
+          return ({
+            id,
+            type,
+            error: errorContent(SavedObjectsErrorHelpers.createGenericNotFoundError(type, id)),
+          } as any) as SavedObject<T>;
+        }
+
+        return getSavedObjectFromSource(this._registry, type, id, {
+          _seq_no: 0,
+          _primary_term: 0,
+          _source: results.attributes,
+        });
+      }),
+    };
   }
 
   async get<T = unknown>(
@@ -439,7 +509,87 @@ export class PostgresSavedObjectsRepository extends SavedObjectsRepository {
     options: SavedObjectsBulkUpdateOptions = {}
   ): Promise<SavedObjectsBulkUpdateResponse<T>> {
     console.log(`I'm inside PostgresSavedObjectsRepository bulkUpdate`);
-    throw new Error('Method not implemented');
+    const time = this._getCurrentTime();
+    const namespace = normalizeNamespace(options.namespace);
+    if (objects.length === 0) {
+      return { saved_objects: [] };
+    }
+
+    const expectedBulkResult = objects.map((object) => {
+      const { type, id, attributes, references } = object;
+
+      const selectQuery = `SELECT "originid", "attributes" , "namespaces" 
+      FROM "metadatastore" where id='${this._serializer.generateRawId(namespace, type, id)}'`;
+
+      let results: any;
+      let existingAttributes: any;
+      this.postgresClient
+        .query(selectQuery)
+        .then((res: any) => {
+          if (res && res.rows.length > 0) {
+            results = res.rows[0];
+            existingAttributes = results.attributes;
+          }
+        })
+        .catch((error: any) => {
+          throw new Error(error);
+        });
+
+      if (results) {
+        existingAttributes[type] = attributes;
+        // Update attributes, references, updated_at
+        const updateQuery = `UPDATE metadatastore SET 
+          attributes='${JSON.stringify(existingAttributes)}', 
+          updated_at='${time}', reference='${JSON.stringify(references)}' 
+          WHERE id='${this._serializer.generateRawId(namespace, type, id)}'`;
+        console.log(`SQL statement = ${updateQuery}`);
+        this.postgresClient
+          .query(updateQuery)
+          .then((res: any) => {
+            console.log(`update operation is successful.`);
+          })
+          .catch((error: any) => {
+            throw new Error(error);
+          });
+
+        const expectedResult = {
+          type,
+          id,
+          namespaces: results.namespaces,
+          documentToSave: existingAttributes,
+        };
+        return { tag: 'Right' as 'Right', value: expectedResult };
+      }
+      return {
+        tag: 'Left' as 'Left',
+        error: {
+          id,
+          type,
+          error: errorContent(SavedObjectsErrorHelpers.createGenericNotFoundError(type, id)),
+        },
+      };
+    });
+
+    return {
+      saved_objects: expectedBulkResult.map((expectedResult) => {
+        if (isLeft(expectedResult)) {
+          return expectedResult.error as any;
+        }
+        const { type, id, namespaces, documentToSave } = expectedResult.value;
+        // eslint-disable-next-line @typescript-eslint/naming-convention
+        const { [type]: attributes, references, updated_at } = documentToSave;
+        return {
+          id,
+          type,
+          ...(namespaces && { namespaces }),
+          // ...(originId && { originId }),
+          updated_at,
+          // version: encodeVersion(seqNo, primaryTerm),
+          attributes,
+          references,
+        };
+      }),
+    };
   }
 
   async incrementCounter(
