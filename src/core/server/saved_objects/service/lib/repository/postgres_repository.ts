@@ -184,7 +184,20 @@ export class PostgresSavedObjectsRepository extends SavedObjectsRepository {
 
   async delete(type: string, id: string, options: SavedObjectsDeleteOptions = {}): Promise<{}> {
     console.log(`I'm inside PostgresSavedObjectsRepository delete`);
-    throw new Error('Method not implemented');
+    // ToDo: Validation same as we are doing in case .kibana index
+    const namespace = normalizeNamespace(options.namespace);
+    const rawId = this._serializer.generateRawId(namespace, type, id);
+    const deleteQuery = `DELETE FROM metadatastore WHERE id='${rawId}'`;
+    await this.postgresClient
+      .query(`${deleteQuery}`)
+      .then(() => {
+        console.log(`'${rawId}' record deleted successfully.`);
+      })
+      .catch((error: any) => {
+        console.error(`error occurred for this query -> "${deleteQuery}"`);
+        throw new Error(error);
+      });
+    return {};
   }
 
   async deleteByNamespace(
