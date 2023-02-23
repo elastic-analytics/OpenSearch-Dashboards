@@ -536,7 +536,7 @@ export class SavedObjectsService
             attributes JSONB NOT NULL,
             reference JSONB NOT NULL,
             migrationVersion JSONB,
-            namespaces JSONB,
+            namespaces TEXT [],
             originId TEXT,
             updated_at TEXT
             )`

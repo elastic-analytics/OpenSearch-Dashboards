@@ -58,6 +58,8 @@ import {
   SavedObjectsRepository,
   SavedObjectsRepositoryOptions,
   getSavedObjectFromSource,
+  getSavedObjectNamespaces,
+  unique,
 } from '../repository';
 import { FIND_DEFAULT_PAGE, FIND_DEFAULT_PER_PAGE, SavedObjectsUtils } from '../utils';
 
@@ -99,7 +101,7 @@ export class PostgresSavedObjectsRepository extends SavedObjectsRepository {
     VALUES('${raw._id}', '${type}', '${version ?? ''}', '${JSON.stringify(raw._source)}', 
     '${JSON.stringify(raw._source.references)}', 
     '${JSON.stringify(raw._source.migrationVersion ?? {})}', 
-    '${JSON.stringify(raw._source.namespaces ?? [])}',
+    ${raw._source.namespaces ? `ARRAY[${raw._source.namespaces}]` : `'{}'`},
     '${raw._source.originId ?? ''}', '${raw._source.updated_at}')`;
     console.log(`Insert query = ${query}`);
     // ToDo: Decide if you want to keep raw._source or raw._source[type] in attributes field.
@@ -144,7 +146,7 @@ export class PostgresSavedObjectsRepository extends SavedObjectsRepository {
     '${object.version ?? ''}', '${JSON.stringify(raw._source).replace(/'/g, `''`)}',
     '${JSON.stringify(raw._source.references)}',
     '${JSON.stringify(raw._source.migrationVersion ?? {})}',
-    '${JSON.stringify(raw._source.namespaces ?? [])}',
+    ${raw._source.namespaces ? `ARRAY[${raw._source.namespaces}]` : `'{}'`},
     '${raw._source.originId ?? ''}', '${raw._source.updated_at}')`;
       // ToDo: Decide if you want to keep raw._source or raw._source[type] in attributes field.
       // Refactor code to insert all rows in single transaction.
@@ -179,7 +181,65 @@ export class PostgresSavedObjectsRepository extends SavedObjectsRepository {
     options: SavedObjectsBaseOptions = {}
   ): Promise<SavedObjectsCheckConflictsResponse> {
     console.log(`I'm inside PostgresSavedObjectsRepository checkConflicts`);
-    throw new Error('Method not implemented');
+    if (objects.length === 0) {
+      return { errors: [] };
+    }
+
+    const namespace = normalizeNamespace(options.namespace);
+    const errors: SavedObjectsCheckConflictsResponse['errors'] = [];
+    const expectedBulkGetResults = objects.map((object) => {
+      const { type, id } = object;
+
+      if (!this._allowedTypes.includes(type)) {
+        const error = {
+          id,
+          type,
+          error: errorContent(SavedObjectsErrorHelpers.createUnsupportedTypeError(type)),
+        };
+        errors.push(error);
+      }
+
+      return {
+        value: {
+          type,
+          id,
+        },
+      };
+    });
+    let results: any;
+    await Promise.all(
+      expectedBulkGetResults.map(async ({ value: { type, id } }) => {
+        await this.postgresClient
+          .query(
+            `SELECT * FROM metadatastore where id='${this._serializer.generateRawId(
+              namespace,
+              type,
+              id
+            )}'`
+          )
+          .then((res: any) => {
+            results = res.rows[0];
+            if (results && results.length > 0) {
+              errors.push({
+                id,
+                type,
+                error: {
+                  ...errorContent(SavedObjectsErrorHelpers.createConflictError(type, id)),
+                  // @ts-expect-error MultiGetHit._source is optional
+                  ...(!this.rawDocExistsInNamespace(doc!, namespace) && {
+                    metadata: { isNotOverwritable: true },
+                  }),
+                },
+              });
+            }
+          })
+          .catch((error: any) => {
+            throw new Error(error);
+          });
+      })
+    );
+
+    return { errors };
   }
 
   async delete(type: string, id: string, options: SavedObjectsDeleteOptions = {}): Promise<{}> {
@@ -205,7 +265,42 @@ export class PostgresSavedObjectsRepository extends SavedObjectsRepository {
     options: SavedObjectsDeleteByNamespaceOptions = {}
   ): Promise<any> {
     console.log(`I'm inside PostgresSavedObjectsRepository deleteByNamespace`);
-    throw new Error('Method not implemented');
+
+    if (!namespace || typeof namespace !== 'string' || namespace === '*') {
+      throw new TypeError(`namespace is required, and must be a string that is not equal to '*'`);
+    }
+
+    // ToDo: Handle the case when the type is namespace-agnostic (global)
+    // ToDo: Find out what needs to be done when namespace doesn't exists or empty. Do we want to delete saved object?
+    const selectQuery = `select id, namespaces from metadatastore where ${namespace}=ANY(namespaces);`;
+    let results: any;
+    await this.postgresClient
+      .query(selectQuery)
+      .then((res: any) => {
+        if (res?.rows.length > 0) results = res.rows;
+      })
+      .catch((error: any) => {
+        throw new Error(error);
+      });
+
+    if (!results) {
+      const time = this._getCurrentTime();
+      await results.forEach((row: any) => {
+        const newNamespace = row.namespaces.removeAll(namespace);
+        const updateQuery = `UPDATE metadatastore SET 
+        namespaces=${newNamespace ? `ARRAY[${newNamespace}]` : `'{}'`},
+        updated_at='${time}'
+        WHERE id='${row.id}'`;
+        this.postgresClient
+          .query(updateQuery)
+          .then((res: any) => {
+            console.log(`deleteByNamespace operation is successful for id=${row.id}`);
+          })
+          .catch((error: any) => {
+            throw new Error(error);
+          });
+      });
+    }
   }
 
   async find<T = unknown>(options: SavedObjectsFindOptions): Promise<SavedObjectsFindResponse<T>> {
@@ -231,7 +326,6 @@ export class PostgresSavedObjectsRepository extends SavedObjectsRepository {
     let sql = `SELECT "id", "type", "version", "attributes", "reference", 
               "migrationversion", "namespaces", "originid", "updated_at" 
               FROM "metadatastore" where type IN(${allowedTypes
-                // eslint-disable-next-line no-shadow
                 .map((type) => `'${type}'`)
                 .join(',')})`;
     console.log('SQL statement without search expression >>>>>>>', sql);
@@ -504,7 +598,34 @@ export class PostgresSavedObjectsRepository extends SavedObjectsRepository {
     options: SavedObjectsAddToNamespacesOptions = {}
   ): Promise<SavedObjectsAddToNamespacesResponse> {
     console.log(`I'm inside PostgresSavedObjectsRepository addToNamespaces`);
-    throw new Error('Method not implemented');
+    // ToDo: Validation
+    const { namespace } = options;
+    // we do not need to normalize the namespace to its ID format, since it will be converted to a namespace string before being used
+
+    const rawId = this._serializer.generateRawId(undefined, type, id);
+    const preflightResult = await this.preflightCheckIncludesNamespace(type, id, namespace);
+    const existingNamespaces = getSavedObjectNamespaces(undefined, preflightResult);
+    // there should never be a case where a multi-namespace object does not have any existing namespaces
+    // however, it is a possibility if someone manually modifies the document in OpenSearch
+    const time = this._getCurrentTime();
+    const newNamespaces = existingNamespaces
+      ? unique(existingNamespaces.concat(namespaces))
+      : namespaces;
+
+    const updateQuery = `UPDATE metadatastore SET 
+      namespaces=${newNamespaces ? `ARRAY[${newNamespaces}]` : `'{}'`},
+      updated_at='${time}'
+      WHERE id='${rawId}'`;
+    this.postgresClient
+      .query(updateQuery)
+      .then((res: any) => {
+        console.log(`update operation is successful.`);
+      })
+      .catch((error: any) => {
+        throw SavedObjectsErrorHelpers.createGenericNotFoundError(type, id);
+      });
+
+    return { namespaces: newNamespaces };
   }
 
   async deleteFromNamespaces(
@@ -514,7 +635,49 @@ export class PostgresSavedObjectsRepository extends SavedObjectsRepository {
     options: SavedObjectsDeleteFromNamespacesOptions = {}
   ): Promise<SavedObjectsDeleteFromNamespacesResponse> {
     console.log(`I'm inside PostgresSavedObjectsRepository deleteFromNamespaces`);
-    throw new Error('Method not implemented');
+    // ToDo: Validation as we are doing in case .kibana index
+    const { namespace } = options;
+    // we do not need to normalize the namespace to its ID format, since it will be converted to a namespace string before being used
+
+    const rawId = this._serializer.generateRawId(undefined, type, id);
+    const preflightResult = await this.preflightCheckIncludesNamespace(type, id, namespace);
+    const existingNamespaces = getSavedObjectNamespaces(undefined, preflightResult);
+    // if there are somehow no existing namespaces, allow the operation to proceed and delete this saved object
+    const remainingNamespaces = existingNamespaces?.filter((x) => !namespaces.includes(x));
+    if (remainingNamespaces?.length) {
+      // if there is 1 or more namespace remaining, update the saved object
+      const time = this._getCurrentTime();
+
+      const doc = {
+        updated_at: time,
+        namespaces: remainingNamespaces,
+      };
+
+      const updateQuery = `UPDATE metadatastore SET 
+        namespaces=${remainingNamespaces ? `ARRAY[${remainingNamespaces}]` : `'{}'`},
+        updated_at='${time}'
+        WHERE id='${rawId}'`;
+      this.postgresClient
+        .query(updateQuery)
+        .then((res: any) => {
+          console.log(`update operation is successful.`);
+        })
+        .catch((error: any) => {
+          throw SavedObjectsErrorHelpers.createGenericNotFoundError(type, id);
+        });
+      return { namespaces: doc.namespaces };
+    } else {
+      const deleteQuery = `DELETE FROM metadatastore WHERE id='${rawId}'`;
+      await this.postgresClient
+        .query(`${deleteQuery}`)
+        .then(() => {
+          return { namespaces: [] };
+        })
+        .catch((error: any) => {
+          throw SavedObjectsErrorHelpers.createGenericNotFoundError(type, id);
+        });
+      throw SavedObjectsErrorHelpers.createGenericNotFoundError(type, id);
+    }
   }
 
   async bulkUpdate<T = unknown>(
