@@ -158,15 +158,12 @@ export class OpenSearchDashboardsMigrator {
 
   private async runMigrationsInternal() {
     const opensearchDashboardsIndexName = this.opensearchDashboardsConfig.index;
-    // this.log.info(`OpenSearch Dashboard Index Name ${opensearchDashboardsIndexName}`);
-    // this.log.info(`Here is the index map ${JSON.stringify(this.mappingProperties, null, 4)}`);
-    // this.log.info(`Type Registry ${JSON.stringify(this.typeRegistry, null, 4)}`);
     const indexMap = createIndexMap({
       opensearchDashboardsIndexName,
       indexMap: this.mappingProperties,
       registry: this.typeRegistry,
     });
-    // this.log.info(`Total config map is ${JSON.stringify(indexMap, null, 4)}`);
+
     const migrators = Object.keys(indexMap).map((index) => {
       return new IndexMigrator({
         batchSize: this.savedObjectsConfig.batchSize,
@@ -186,6 +183,7 @@ export class OpenSearchDashboardsMigrator {
         convertToAliasScript: indexMap[index].script,
       });
     });
+
     return Promise.all(migrators.map((migrator) => migrator.migrate()));
   }
 
