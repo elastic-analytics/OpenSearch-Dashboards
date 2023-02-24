@@ -67,7 +67,6 @@ export class PostgresSavedObjectsRepository extends SavedObjectsRepository {
   private readonly postgresClient: any;
 
   constructor(options: SavedObjectsRepositoryOptions, postgresClient: any) {
-    console.log(`I'm inside PostgresSavedObjectsRepository constructor`);
     super(options);
     this.postgresClient = postgresClient;
   }
@@ -77,18 +76,11 @@ export class PostgresSavedObjectsRepository extends SavedObjectsRepository {
     attributes: T,
     options: SavedObjectsCreateOptions = {}
   ): Promise<SavedObject<T>> {
-    console.log(`I'm inside PostgresSavedObjectsRepository create`);
-    console.log('this.index', this._index);
-
     const id = options.id;
     const overwrite = options.overwrite;
     // const refresh = options.refresh; // We don't need refresh for SQL operation.
     // ToDo: For now we are just storing version in table. Later we need to decide whether we want to use it for concurrency control or not.
     const version = options.version;
-
-    if (id && overwrite)
-      console.log(`====================Saved Object is being CREATED==============`);
-    else console.log(`======================Saved object is being UPDATED================`);
 
     const namespace = normalizeNamespace(options.namespace);
     let existingNamespaces: string[] | undefined;
@@ -103,7 +95,6 @@ export class PostgresSavedObjectsRepository extends SavedObjectsRepository {
     '${JSON.stringify(raw._source.migrationVersion ?? {})}', 
     ${raw._source.namespaces ? `ARRAY[${raw._source.namespaces}]` : `'{}'`},
     '${raw._source.originId ?? ''}', '${raw._source.updated_at}')`;
-    console.log(`Insert query = ${query}`);
     // ToDo: Decide if you want to keep raw._source or raw._source[type] in attributes field.
     // Above decision to be made after we decide on search functionality.
     await this.postgresClient
@@ -125,7 +116,6 @@ export class PostgresSavedObjectsRepository extends SavedObjectsRepository {
     objects: Array<SavedObjectsBulkCreateObject<T>>,
     options: SavedObjectsCreateOptions = {}
   ): Promise<SavedObjectsBulkResponse<T>> {
-    console.log(`I'm inside PostgresSavedObjectsRepository bulkCreate`);
     const namespace = normalizeNamespace(options.namespace);
     // ToDo: Do validation of objects as we do in OpenSearch.
     // For sake of POC, we are just inserting all object in a loop.
@@ -180,7 +170,6 @@ export class PostgresSavedObjectsRepository extends SavedObjectsRepository {
     objects: SavedObjectsCheckConflictsObject[] = [],
     options: SavedObjectsBaseOptions = {}
   ): Promise<SavedObjectsCheckConflictsResponse> {
-    console.log(`I'm inside PostgresSavedObjectsRepository checkConflicts`);
     if (objects.length === 0) {
       return { errors: [] };
     }
@@ -243,7 +232,6 @@ export class PostgresSavedObjectsRepository extends SavedObjectsRepository {
   }
 
   async delete(type: string, id: string, options: SavedObjectsDeleteOptions = {}): Promise<{}> {
-    console.log(`I'm inside PostgresSavedObjectsRepository delete`);
     // ToDo: Validation same as we are doing in case .kibana index
     const namespace = normalizeNamespace(options.namespace);
     const rawId = this._serializer.generateRawId(namespace, type, id);
@@ -264,8 +252,6 @@ export class PostgresSavedObjectsRepository extends SavedObjectsRepository {
     namespace: string,
     options: SavedObjectsDeleteByNamespaceOptions = {}
   ): Promise<any> {
-    console.log(`I'm inside PostgresSavedObjectsRepository deleteByNamespace`);
-
     if (!namespace || typeof namespace !== 'string' || namespace === '*') {
       throw new TypeError(`namespace is required, and must be a string that is not equal to '*'`);
     }
@@ -304,7 +290,6 @@ export class PostgresSavedObjectsRepository extends SavedObjectsRepository {
   }
 
   async find<T = unknown>(options: SavedObjectsFindOptions): Promise<SavedObjectsFindResponse<T>> {
-    console.log(`I'm inside PostgresSavedObjectsRepository find`);
     const {
       search,
       searchFields,
@@ -328,25 +313,24 @@ export class PostgresSavedObjectsRepository extends SavedObjectsRepository {
               FROM "metadatastore" where type IN(${allowedTypes
                 .map((type) => `'${type}'`)
                 .join(',')})`;
-    console.log('SQL statement without search expression >>>>>>>', sql);
 
     let buildLikeExpr: string | undefined = '';
     if (search) {
-      console.log(`search value ${search}`);
       buildLikeExpr = searchFields
         ?.map(
-          (field) => `attributes->>'$."${field.split('^')[0]}"' LIKE '%${search.replace('*', '')}%'`
+          (field) =>
+            `jsonb_path_exists(attributes, '$.* ? (@.${
+              field.split('^')[0]
+            } like_regex "${search.replace('*', '')}" flag "i")')`
         )
         .join(' OR ');
     }
     sql = buildLikeExpr ? `${sql} AND (${buildLikeExpr})` : `${sql}`;
-    console.log('statement with search query >>>>>>>>>>', sql);
     let results: any;
     await this.postgresClient
       .query(sql)
       .then((res: any) => {
         results = res.rows;
-        // console.log('results', JSON.stringify(results, null, 4));
       })
       .catch((error: any) => {
         throw new Error(error);
@@ -384,7 +368,6 @@ export class PostgresSavedObjectsRepository extends SavedObjectsRepository {
     objects: SavedObjectsBulkGetObject[] = [],
     options: SavedObjectsBaseOptions = {}
   ): Promise<SavedObjectsBulkResponse<T>> {
-    console.log(`I'm inside PostgresSavedObjectsRepository bulkGet`);
     const namespace = normalizeNamespace(options.namespace);
 
     if (objects.length === 0) {
@@ -402,7 +385,6 @@ export class PostgresSavedObjectsRepository extends SavedObjectsRepository {
           .query(query)
           .then((res: any) => {
             results = res.rows[0];
-            console.log('results', JSON.stringify(results, null, 4));
           })
           .catch((error: any) => {
             throw new Error(error);
@@ -429,16 +411,12 @@ export class PostgresSavedObjectsRepository extends SavedObjectsRepository {
 
     return {
       saved_objects: expectedBulkGetResults.map((expectedResult) => {
-        console.log('expectedResult', JSON.stringify(expectedResult, null, 4));
         if (isLeft(expectedResult)) {
-          console.log(`Left result!!!!`);
           return expectedResult.error as any;
         }
         const { type, id, results } = expectedResult.value;
-        console.log('results', JSON.stringify(results, null, 4));
 
         if (!results || results.length === 0) {
-          console.log(`results are not coming!!!`);
           return ({
             id,
             type,
@@ -460,8 +438,6 @@ export class PostgresSavedObjectsRepository extends SavedObjectsRepository {
     id: string,
     options: SavedObjectsBaseOptions = {}
   ): Promise<SavedObject<T>> {
-    console.log(`I'm inside PostgresSavedObjectsRepository get`);
-
     this.validateType(type);
 
     const namespace = normalizeNamespace(options.namespace);
@@ -480,14 +456,12 @@ export class PostgresSavedObjectsRepository extends SavedObjectsRepository {
     const query = `SELECT "id", "type", "version", "attributes", "reference", 
     "migrationversion", "namespaces", "originid", "updated_at" 
     FROM "metadatastore" where id='${this._serializer.generateRawId(namespace, type, id)}'`;
-    console.log(`SQL statement = ${query}`);
 
     let results: any;
     await this.postgresClient
       .query(query)
       .then((res: any) => {
         results = res.rows[0];
-        console.log('results', JSON.stringify(results, null, 4));
       })
       .catch((error: any) => {
         throw new Error(error);
@@ -502,14 +476,11 @@ export class PostgresSavedObjectsRepository extends SavedObjectsRepository {
 
     const originId = results.originid;
     const updatedAt = results.updated_at;
-    console.log(`originId = ${originId} and updatedAt = ${updatedAt}`);
 
     let namespaces: string[] = [];
     if (!this._registry.isNamespaceAgnostic(type)) {
       namespaces = results.namespaces ?? [SavedObjectsUtils.namespaceIdToString(results.namespace)];
     }
-    console.log(`namespaces = ${namespaces}`);
-    // console.log(`attributes = ${JSON.stringify(results.attributes[type])}`);
 
     // Todo: Research about version parameter
     return {
@@ -531,7 +502,6 @@ export class PostgresSavedObjectsRepository extends SavedObjectsRepository {
     attributes: Partial<T>,
     options: SavedObjectsUpdateOptions = {}
   ): Promise<SavedObjectsUpdateResponse<T>> {
-    console.log(`I'm inside PostgresSavedObjectsRepository update`);
     // ToDo: Do validation of some fields as we are doing in case of OpenSearch.
 
     const references = options.references ?? [];
@@ -540,7 +510,6 @@ export class PostgresSavedObjectsRepository extends SavedObjectsRepository {
 
     const selectQuery = `SELECT "originid", "attributes" , "namespaces" 
     FROM "metadatastore" where id='${this._serializer.generateRawId(namespace, type, id)}'`;
-    console.log(`SQL statement = ${selectQuery}`);
 
     let results: any;
     await this.postgresClient
@@ -548,7 +517,6 @@ export class PostgresSavedObjectsRepository extends SavedObjectsRepository {
       .then((res: any) => {
         if (res && res.rows.length > 0) {
           results = res.rows[0].attributes;
-          console.log('attributes', JSON.stringify(attributes, null, 4));
         }
       })
       .catch((error: any) => {
@@ -562,10 +530,9 @@ export class PostgresSavedObjectsRepository extends SavedObjectsRepository {
         attributes='${JSON.stringify(results)}', 
         updated_at='${time}', reference='${JSON.stringify(references)}' 
         WHERE id='${this._serializer.generateRawId(namespace, type, id)}'`;
-      console.log(`SQL statement = ${updateQuery}`);
       await this.postgresClient
         .query(updateQuery)
-        .then((res: any) => {
+        .then(() => {
           console.log(`update operation is successful.`);
         })
         .catch((error: any) => {
@@ -597,7 +564,6 @@ export class PostgresSavedObjectsRepository extends SavedObjectsRepository {
     namespaces: string[],
     options: SavedObjectsAddToNamespacesOptions = {}
   ): Promise<SavedObjectsAddToNamespacesResponse> {
-    console.log(`I'm inside PostgresSavedObjectsRepository addToNamespaces`);
     // ToDo: Validation
     const { namespace } = options;
     // we do not need to normalize the namespace to its ID format, since it will be converted to a namespace string before being used
@@ -618,7 +584,7 @@ export class PostgresSavedObjectsRepository extends SavedObjectsRepository {
       WHERE id='${rawId}'`;
     this.postgresClient
       .query(updateQuery)
-      .then((res: any) => {
+      .then(() => {
         console.log(`update operation is successful.`);
       })
       .catch((error: any) => {
@@ -634,7 +600,6 @@ export class PostgresSavedObjectsRepository extends SavedObjectsRepository {
     namespaces: string[],
     options: SavedObjectsDeleteFromNamespacesOptions = {}
   ): Promise<SavedObjectsDeleteFromNamespacesResponse> {
-    console.log(`I'm inside PostgresSavedObjectsRepository deleteFromNamespaces`);
     // ToDo: Validation as we are doing in case .kibana index
     const { namespace } = options;
     // we do not need to normalize the namespace to its ID format, since it will be converted to a namespace string before being used
@@ -659,10 +624,10 @@ export class PostgresSavedObjectsRepository extends SavedObjectsRepository {
         WHERE id='${rawId}'`;
       this.postgresClient
         .query(updateQuery)
-        .then((res: any) => {
+        .then(() => {
           console.log(`update operation is successful.`);
         })
-        .catch((error: any) => {
+        .catch(() => {
           throw SavedObjectsErrorHelpers.createGenericNotFoundError(type, id);
         });
       return { namespaces: doc.namespaces };
@@ -684,7 +649,6 @@ export class PostgresSavedObjectsRepository extends SavedObjectsRepository {
     objects: Array<SavedObjectsBulkUpdateObject<T>>,
     options: SavedObjectsBulkUpdateOptions = {}
   ): Promise<SavedObjectsBulkUpdateResponse<T>> {
-    console.log(`I'm inside PostgresSavedObjectsRepository bulkUpdate`);
     const time = this._getCurrentTime();
     const namespace = normalizeNamespace(options.namespace);
     if (objects.length === 0) {
@@ -718,10 +682,9 @@ export class PostgresSavedObjectsRepository extends SavedObjectsRepository {
           attributes='${JSON.stringify(existingAttributes)}', 
           updated_at='${time}', reference='${JSON.stringify(references)}' 
           WHERE id='${this._serializer.generateRawId(namespace, type, id)}'`;
-        console.log(`SQL statement = ${updateQuery}`);
         this.postgresClient
           .query(updateQuery)
-          .then((res: any) => {
+          .then(() => {
             console.log(`update operation is successful.`);
           })
           .catch((error: any) => {
@@ -774,7 +737,6 @@ export class PostgresSavedObjectsRepository extends SavedObjectsRepository {
     counterFieldName: string,
     options: SavedObjectsIncrementCounterOptions = {}
   ): Promise<SavedObject> {
-    console.log(`I'm inside PostgresSavedObjectsRepository incrementCounter`);
     // ToDo: Do validation of some fields as we are doing in case of OpenSearch.
     const namespace = normalizeNamespace(options.namespace);
     const time = this._getCurrentTime();
@@ -788,7 +750,6 @@ export class PostgresSavedObjectsRepository extends SavedObjectsRepository {
     );
 
     const selectQuery = `SELECT "attributes" FROM "metadatastore" where id='${raw._id}'`;
-    console.log(`SQL statement = ${selectQuery}`);
 
     let attributes: any;
     await this.postgresClient
@@ -796,7 +757,6 @@ export class PostgresSavedObjectsRepository extends SavedObjectsRepository {
       .then((res: any) => {
         if (res && res.rows.length > 0) {
           attributes = res.rows[0].attributes;
-          console.log('attributes', JSON.stringify(attributes, null, 4));
         }
       })
       .catch((error: any) => {
@@ -810,28 +770,23 @@ export class PostgresSavedObjectsRepository extends SavedObjectsRepository {
         attributes[type][counterFieldName] += 1;
       }
 
-      console.log(`Updtaed attributes = ${JSON.stringify(attributes)}`);
-
       const updateQuery = `UPDATE metadatastore SET attributes=${attributes}, updated_at=${time} WHERE id=${raw._id}`;
       await this.postgresClient
         .query(updateQuery)
         .then((res: any) => {
           raw._source = attributes;
-          console.log(`incremented counter successfully`);
         })
         .catch((error: any) => {
           throw new Error(error);
         });
     } else {
       raw._source[type][counterFieldName] = 1;
-      console.log(`raw._source.migrationVersion = ${raw._source.migrationVersion} `);
       const insertQuery = `INSERT INTO metadatastore(id, type, attributes, reference, migrationversion, namespaces, originid, updated_at) 
         VALUES('${raw._id}', '${type}', '${JSON.stringify(raw._source)}', 
         '${JSON.stringify(raw._source.references)}', 
         '${JSON.stringify(raw._source.migrationVersion ?? {})}', 
         '${JSON.stringify(raw._source.namespaces ?? [])}',
         '${raw._source.originId ?? ''}', '${raw._source.updated_at}')`;
-      console.log(`Insert query = ${insertQuery}`);
       // ToDo: Decide if you want to keep raw._source or raw._source[type] in attributes field.
       await this.postgresClient
         .query(insertQuery)
