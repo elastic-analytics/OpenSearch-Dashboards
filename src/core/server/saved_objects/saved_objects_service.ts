@@ -364,7 +364,6 @@ export class SavedObjectsService
     }
 
     this.logger.debug('Starting SavedObjects service');
-    this.logger.info(`Config is ${JSON.stringify(this.config, null, 4)}`);
 
     const opensearchDashboardsConfig = await this.coreContext.configService
       .atPath<OpenSearchDashboardsConfigType>('opensearchDashboards')
