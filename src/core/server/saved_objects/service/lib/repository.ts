@@ -181,7 +181,6 @@ export abstract class SavedObjectsRepository {
   }
 
   protected constructor(options: SavedObjectsRepositoryOptions) {
-    console.log(`I'm coming to base class constructor`);
     const {
       index,
       mappings,
