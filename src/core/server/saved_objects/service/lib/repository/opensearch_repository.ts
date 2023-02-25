@@ -92,17 +92,10 @@ export class OpensearchSavedObjectsRepository extends SavedObjectsRepository {
     attributes: T,
     options: SavedObjectsCreateOptions = {}
   ): Promise<SavedObject<T>> {
-    console.log('I am inside OpensearchSavedObjectsRepository create method');
-    console.log('this.index', this._index);
-
     const id = options.id;
     const overwrite = options.overwrite;
     const refresh = options.refresh;
     const version = options.version;
-
-    if (id && overwrite)
-      console.log(`====================Saved Object is being CREATED==============`);
-    else console.log(`======================Saved object is being UPDATED================`);
 
     const namespace = normalizeNamespace(options.namespace);
     let existingNamespaces: string[] | undefined;
@@ -135,7 +128,6 @@ export class OpensearchSavedObjectsRepository extends SavedObjectsRepository {
     objects: Array<SavedObjectsBulkCreateObject<T>>,
     options: SavedObjectsCreateOptions = {}
   ): Promise<SavedObjectsBulkResponse<T>> {
-    console.log(`I'm inside OpensearchSavedObjectsRepository bulkCreate method`);
     const { overwrite = false, refresh = DEFAULT_REFRESH_SETTING } = options;
     const namespace = normalizeNamespace(options.namespace);
     const time = this._getCurrentTime();
@@ -322,7 +314,6 @@ export class OpensearchSavedObjectsRepository extends SavedObjectsRepository {
     objects: SavedObjectsCheckConflictsObject[] = [],
     options: SavedObjectsBaseOptions = {}
   ): Promise<SavedObjectsCheckConflictsResponse> {
-    console.log(`I'm inside OpensearchSavedObjectsRepository checkConflicts`);
     if (objects.length === 0) {
       return { errors: [] };
     }
@@ -398,7 +389,6 @@ export class OpensearchSavedObjectsRepository extends SavedObjectsRepository {
   }
 
   async delete(type: string, id: string, options: SavedObjectsDeleteOptions = {}): Promise<{}> {
-    console.log(`I'm inside OpensearchSavedObjectsRepository delete`);
     if (!this._allowedTypes.includes(type)) {
       throw SavedObjectsErrorHelpers.createGenericNotFoundError(type, id);
     }
@@ -457,7 +447,6 @@ export class OpensearchSavedObjectsRepository extends SavedObjectsRepository {
     namespace: string,
     options: SavedObjectsDeleteByNamespaceOptions = {}
   ): Promise<any> {
-    console.log(`I'm inside OpensearchSavedObjectsRepository deleteByNamespace`);
     if (!namespace || typeof namespace !== 'string' || namespace === '*') {
       throw new TypeError(`namespace is required, and must be a string that is not equal to '*'`);
     }
@@ -498,7 +487,6 @@ export class OpensearchSavedObjectsRepository extends SavedObjectsRepository {
   }
 
   async find<T = unknown>(options: SavedObjectsFindOptions): Promise<SavedObjectsFindResponse<T>> {
-    console.log(`I'm inside OpensearchSavedObjectsRepository find`);
     const {
       search,
       defaultSearchOperator = 'OR',
@@ -603,7 +591,6 @@ export class OpensearchSavedObjectsRepository extends SavedObjectsRepository {
     objects: SavedObjectsBulkGetObject[] = [],
     options: SavedObjectsBaseOptions = {}
   ): Promise<SavedObjectsBulkResponse<T>> {
-    console.log(`I'm inside OpensearchSavedObjectsRepository bulkGet`);
     const namespace = normalizeNamespace(options.namespace);
 
     if (objects.length === 0) {
@@ -683,8 +670,6 @@ export class OpensearchSavedObjectsRepository extends SavedObjectsRepository {
     id: string,
     options: SavedObjectsBaseOptions = {}
   ): Promise<SavedObject<T>> {
-    console.log(`I'm inside OpensearchSavedObjectsRepository get`);
-
     // ToDo: Need to find answer for below question. Once we confirm, either uncomment commented code and remove subsequent function call or remove commented code.
     /*
     if (!this._allowedTypes.includes(type)) {
@@ -696,7 +681,6 @@ export class OpensearchSavedObjectsRepository extends SavedObjectsRepository {
 
     const namespace = normalizeNamespace(options.namespace);
 
-    console.log(`index value "${this.getIndexForType(type)}" for type "${type}"`);
     const { body, statusCode } = await this.client.get<SavedObjectsRawDocSource>(
       {
         id: this._serializer.generateRawId(namespace, type, id),
@@ -743,7 +727,6 @@ export class OpensearchSavedObjectsRepository extends SavedObjectsRepository {
     attributes: Partial<T>,
     options: SavedObjectsUpdateOptions = {}
   ): Promise<SavedObjectsUpdateResponse<T>> {
-    console.log(`I'm inside OpensearchSavedObjectsRepository update`);
     if (!this._allowedTypes.includes(type)) {
       throw SavedObjectsErrorHelpers.createGenericNotFoundError(type, id);
     }
@@ -810,7 +793,6 @@ export class OpensearchSavedObjectsRepository extends SavedObjectsRepository {
     namespaces: string[],
     options: SavedObjectsAddToNamespacesOptions = {}
   ): Promise<SavedObjectsAddToNamespacesResponse> {
-    console.log(`I'm inside OpensearchSavedObjectsRepository addToNamespaces`);
     if (!this._allowedTypes.includes(type)) {
       throw SavedObjectsErrorHelpers.createGenericNotFoundError(type, id);
     }
@@ -869,7 +851,6 @@ export class OpensearchSavedObjectsRepository extends SavedObjectsRepository {
     namespaces: string[],
     options: SavedObjectsDeleteFromNamespacesOptions = {}
   ): Promise<SavedObjectsDeleteFromNamespacesResponse> {
-    console.log(`I'm inside OpensearchSavedObjectsRepository deleteFromNamespaces`);
     if (!this._allowedTypes.includes(type)) {
       throw SavedObjectsErrorHelpers.createGenericNotFoundError(type, id);
     }
@@ -965,7 +946,6 @@ export class OpensearchSavedObjectsRepository extends SavedObjectsRepository {
     objects: Array<SavedObjectsBulkUpdateObject<T>>,
     options: SavedObjectsBulkUpdateOptions = {}
   ): Promise<SavedObjectsBulkUpdateResponse<T>> {
-    console.log(`I'm inside OpensearchSavedObjectsRepository bulkUpdate`);
     const time = this._getCurrentTime();
     const namespace = normalizeNamespace(options.namespace);
 
@@ -1187,7 +1167,6 @@ export class OpensearchSavedObjectsRepository extends SavedObjectsRepository {
     counterFieldName: string,
     options: SavedObjectsIncrementCounterOptions = {}
   ): Promise<SavedObject> {
-    console.log(`I'm inside OpensearchSavedObjectsRepository incrementCounter`);
     if (typeof type !== 'string') {
       throw new Error('"type" argument must be a string');
     }
