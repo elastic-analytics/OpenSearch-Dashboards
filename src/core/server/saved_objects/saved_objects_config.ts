@@ -51,10 +51,10 @@ export const savedObjectsConfig = {
     maxImportExportSize: schema.byteSize({ defaultValue: 10000 }),
     db: schema.object({
       type: schema.string({ defaultValue: 'opensearch' }),
-      hostName: schema.string(),
-      userName: schema.string(),
-      password: schema.string(),
-      port: schema.number(),
+      hostName: schema.string({ defaultValue: '' }),
+      userName: schema.string({ defaultValue: '' }),
+      password: schema.string({ defaultValue: '' }),
+      port: schema.number({ defaultValue: 0 }),
     }),
   }),
 };

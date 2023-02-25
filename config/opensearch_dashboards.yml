@@ -242,4 +242,4 @@
 # savedObjects.db.hostName: 'changeme'
 # savedObjects.db.userName: 'changeme'
 # savedObjects.db.password: 'changeme'
-# savedObjects.db.port: 5432
+# savedObjects.db.port: 0000
