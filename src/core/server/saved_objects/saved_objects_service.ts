@@ -393,7 +393,8 @@ export class SavedObjectsService
      * We also cannot safely run migrations if plugins are not initialized since
      * not plugin migrations won't be registered.
      */
-    const skipMigrations = this.config.migration.skip || !pluginsInitialized;
+    // const skipMigrations = this.config.migration.skip || !pluginsInitialized;
+    const skipMigrations = true;
 
     if (skipMigrations) {
       this.logger.warn(
