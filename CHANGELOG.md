@@ -20,6 +20,7 @@ Inspired from [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
 - [Security] Bumps hapi/statehood to 7.0.4 ([#3411](https://github.com/opensearch-project/OpenSearch-Dashboards/pull/3411))
 - [CVE-2023-25166] Bump formula to 3.0.1 ([#3416](https://github.com/opensearch-project/OpenSearch-Dashboards/pull/3416))
 - [CVE-2023-25653] Bump node-jose to 2.2.0 ([#3445](https://github.com/opensearch-project/OpenSearch-Dashboards/pull/3445))
+- [CVE-2023-26486][CVE-2023-26487] Bump vega from 5.22.1 to 5.23.0 ([#3533](https://github.com/opensearch-project/OpenSearch-Dashboards/pull/3533))
 
 ### 📈 Features/Enhancements
 
@@ -64,6 +65,7 @@ Inspired from [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
 - [Multiple DataSource] Add support for SigV4 authentication ([#3058](https://github.com/opensearch-project/OpenSearch-Dashboards/issues/3058))
 - Make build scripts find and use the latest version of Node.js that satisfies `engines.node` ([#3467](https://github.com/opensearch-project/OpenSearch-Dashboards/issues/3467))
 - [Multiple DataSource] Refactor test connection to support SigV4 auth type ([#3456](https://github.com/opensearch-project/OpenSearch-Dashboards/issues/3456))
+- [Darwin] Add support for Darwin for running OpenSearch snapshots with `yarn opensearch snapshot` ([#3537](https://github.com/opensearch-project/OpenSearch-Dashboards/pull/3537))
 
 ### 🐛 Bug Fixes
 
@@ -124,7 +126,9 @@ Inspired from [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
 - [Doc] Add readme for global query persistence ([#3001](https://github.com/opensearch-project/OpenSearch-Dashboards/pull/3001))
 - Updates NOTICE file, adds validation to GitHub CI ([#3051](https://github.com/opensearch-project/OpenSearch-Dashboards/pull/3051))
 - [Doc] Add current plugin persistence implementation readme ([#3081](https://github.com/opensearch-project/OpenSearch-Dashboards/pull/3081))
+- [Doc] Improve DEVELOPER_GUIDE to make first time setup quicker and easier ([#3421](https://github.com/opensearch-project/OpenSearch-Dashboards/pull/3421))
 - Correct copyright date range of NOTICE file and notice generator ([#3308](https://github.com/opensearch-project/OpenSearch-Dashboards/pull/3308))
+- Simplify the in-code instructions for upgrading `re2` ([#3328](https://github.com/opensearch-project/OpenSearch-Dashboards/pull/3328))
 
 ### 🛠 Maintenance
 
@@ -137,6 +141,7 @@ Inspired from [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
 - Allow relaxing the Node.js runtime version requirement ([3402](https://github.com/opensearch-project/OpenSearch-Dashboards/pull/3402))
 - Relax the Node.js requirement to `^14.20.1` ([3463](https://github.com/opensearch-project/OpenSearch-Dashboards/pull/3463))
 - Bump the version of Node.js installed by `nvm` to `14.21.3` ([3463](https://github.com/opensearch-project/OpenSearch-Dashboards/pull/3463))
+- Remove the unused `renovate.json5` file ([3489](https://github.com/opensearch-project/OpenSearch-Dashboards/pull/3489))
 
 ### 🪛 Refactoring
 
@@ -194,6 +199,7 @@ Inspired from [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
 - [Viz Builder] Add index pattern info when loading embeddable ([#2363](https://github.com/opensearch-project/OpenSearch-Dashboards/pull/2363))
 - Fixes management app breadcrumb error ([#2344](https://github.com/opensearch-project/OpenSearch-Dashboards/pull/2344))
 - [BUG] Fix suggestion list cutoff issue ([#2607](https://github.com/opensearch-project/OpenSearch-Dashboards/pull/2607))
+- [TSVB] Fixes undefined serial diff aggregation documentation link ([#3503](https://github.com/opensearch-project/OpenSearch-Dashboards/pull/3503))
 
 ### 🚞 Infrastructure
 
@@ -208,6 +214,7 @@ Inspired from [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
 - Add sample config for multi data source feature in yml template. ([#2428](https://github.com/opensearch-project/OpenSearch-Dashboards/pull/2428))
 - README.md for dataSource and dataSourceManagement Plugin ([#2448](https://github.com/opensearch-project/OpenSearch-Dashboards/pull/2448))
 - Updates functionl testing information in Testing.md ([#2492](https://github.com/opensearch-project/OpenSearch-Dashboards/pull/2492))
+- Fixes typo in TSVB README ([#3518](https://github.com/opensearch-project/OpenSearch-Dashboards/pull/3518))
 
 ### 🛠 Maintenance
 
@@ -222,6 +229,7 @@ Inspired from [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
 ### 🔩 Tests
 
 - Update caniuse to fix failed integration tests ([#2322](https://github.com/opensearch-project/OpenSearch-Dashboards/pull/2322))
+- Update caniuse to 1.0.30001460 to fix failed integration tests ([#3538](https://github.com/opensearch-project/OpenSearch-Dashboards/pull/3538))
 
 [unreleased]: https://github.com/opensearch-project/OpenSearch-Dashboards/compare/2.3.0...HEAD
 [2.x]: https://github.com/opensearch-project/OpenSearch-Dashboards/compare/2.3.0...2.x
