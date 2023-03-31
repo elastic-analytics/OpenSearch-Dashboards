@@ -64,6 +64,8 @@ import { registerRoutes } from './routes';
 import { ServiceStatus } from '../status';
 import { calculateStatus$ } from './status';
 import { createMigrationOpenSearchClient } from './migrations/core/';
+import { PostgresSavedObjectsRepository } from './service/lib/repository/postgres_repository';
+import { OpensearchSavedObjectsRepository } from './service/lib/repository/opensearch_repository';
 /**
  * Saved Objects is OpenSearchDashboards's data persistence mechanism allowing plugins to
  * use OpenSearch for storing and querying state. The SavedObjectsServiceSetup API exposes methods
@@ -101,6 +103,8 @@ import { createMigrationOpenSearchClient } from './migrations/core/';
  *
  * @public
  */
+
+let postgresClient: any;
 export interface SavedObjectsServiceSetup {
   /**
    * Set the default {@link SavedObjectsClientFactoryProvider | factory provider} for creating Saved Objects clients.
@@ -389,7 +393,8 @@ export class SavedObjectsService
      * We also cannot safely run migrations if plugins are not initialized since
      * not plugin migrations won't be registered.
      */
-    const skipMigrations = this.config.migration.skip || !pluginsInitialized;
+    // const skipMigrations = this.config.migration.skip || !pluginsInitialized;
+    const skipMigrations = true;
 
     if (skipMigrations) {
       this.logger.warn(
@@ -418,6 +423,7 @@ export class SavedObjectsService
       await migrator.runMigrations();
     }
 
+    const metaStorageRepository = this.selectRepository(this.config);
     const createRepository = (
       opensearchClient: OpenSearchClient,
       includedHiddenTypes: string[] = []
@@ -427,7 +433,9 @@ export class SavedObjectsService
         this.typeRegistry,
         opensearchDashboardsConfig.index,
         opensearchClient,
-        includedHiddenTypes
+        includedHiddenTypes,
+        metaStorageRepository,
+        postgresClient
       );
     };
 
@@ -484,5 +492,61 @@ export class SavedObjectsService
         migrationsRetryDelay
       ),
     });
+  }
+
+  private selectRepository(config: SavedObjectConfig) {
+    const savedObjectsRepository = OpensearchSavedObjectsRepository;
+    switch (config.dbType) {
+      case 'opensearch':
+        return savedObjectsRepository;
+      case 'postgres':
+        this.createTable(config);
+        return PostgresSavedObjectsRepository;
+      default:
+        return savedObjectsRepository;
+    }
+  }
+
+  private async createTable(config: SavedObjectConfig) {
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const pg = require('pg');
+    const dbName = 'opensearch_dashboards';
+    const connUrl = `postgres://${config.dbUserName}:${config.dbPassword}@${config.dbHostName}:${config.dbPort}`;
+    postgresClient = new pg.Client(connUrl);
+    postgresClient.connect();
+
+    await postgresClient
+      .query(`CREATE DATABASE ${dbName}`)
+      .then((res: any) => {
+        this.logger.info(`DATABSE ${dbName} is successfully created`);
+      })
+      .catch((error: any) => {
+        this.logger.info(error);
+      });
+    postgresClient.end();
+
+    postgresClient = new pg.Client(`${connUrl}/${dbName}`);
+    postgresClient.connect();
+    await postgresClient
+      .query(
+        `CREATE TABLE IF NOT EXISTS MetadataStore (
+            id TEXT NOT NULL, 
+            type TEXT NOT NULL, 
+            version TEXT,
+            attributes JSONB NOT NULL,
+            reference JSONB NOT NULL,
+            migrationVersion JSONB,
+            namespaces TEXT [],
+            originId TEXT,
+            updated_at TEXT
+            )`
+      )
+      .then((res: any) => {
+        this.logger.info('Table is successfully created');
+      })
+      .catch((error: any) => {
+        this.logger.error('Error while creating tabel MetadataStore');
+        this.logger.error(error);
+      });
   }
 }

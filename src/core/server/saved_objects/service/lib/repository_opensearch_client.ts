@@ -32,7 +32,7 @@ import type { TransportRequestOptions } from '@opensearch-project/opensearch/lib
 
 import { OpenSearchClient } from '../../../opensearch/';
 import { retryCallCluster } from '../../../opensearch/client/retry_call_cluster';
-import { decorateOpenSearchError } from './decorate_opensearch_error';
+// import { decorateOpenSearchError } from './decorate_opensearch_error';
 
 const methods = [
   'bulk',
@@ -61,7 +61,7 @@ export function createRepositoryOpenSearchClient(
             (client[key] as Function)(params, { maxRetries: 0, ...options })
           );
         } catch (e) {
-          throw decorateOpenSearchError(e);
+          // throw decorateOpenSearchError(e);
         }
       },
     });

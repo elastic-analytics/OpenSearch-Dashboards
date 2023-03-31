@@ -29,7 +29,7 @@
  */
 
 import { Observable, Subject } from 'rxjs';
-import { first, map, shareReplay, takeUntil } from 'rxjs/operators';
+import { first, map, shareReplay } from 'rxjs/operators';
 import { merge } from '@osd/std';
 
 import { CoreService } from '../../types';
@@ -98,7 +98,7 @@ export class OpenSearchService
       ignoreVersionMismatch: config.ignoreVersionMismatch,
       opensearchVersionCheckInterval: config.healthCheckDelay.asMilliseconds(),
       opensearchDashboardsVersion: this.opensearchDashboardsVersion,
-    }).pipe(takeUntil(this.stop$), shareReplay({ refCount: true, bufferSize: 1 }));
+    }).pipe(shareReplay({ refCount: true, bufferSize: 1 }));
 
     this.createLegacyCustomClient = (type, clientConfig = {}) => {
       const finalConfig = merge({}, config, clientConfig);

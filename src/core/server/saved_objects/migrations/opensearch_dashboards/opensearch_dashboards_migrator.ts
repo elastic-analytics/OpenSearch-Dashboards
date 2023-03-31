@@ -156,7 +156,7 @@ export class OpenSearchDashboardsMigrator {
     return this.status$.asObservable();
   }
 
-  private runMigrationsInternal() {
+  private async runMigrationsInternal() {
     const opensearchDashboardsIndexName = this.opensearchDashboardsConfig.index;
     const indexMap = createIndexMap({
       opensearchDashboardsIndexName,
